@@ -1,0 +1,18 @@
+# 🥚 灵感孵化器 (Ideas Incubator)
+
+> 不管多离谱的想法，先写下来。
+
+## Idea Pool
+- [ ] **[想法标题]**: 一句话描述
+  - *Context*: 为什么会有这个想法？
+  - *Status*: 待验证 / 孵化中 / 已放弃
+
+- [ ] **微信 RSS 工具**: 
+  - *Context*: DeepSeek 发布错过消息
+  - *Status*: Incubating (已创建 Skill)
+
+## 待深挖列表
+| 优先级 | 想法 ID | 领域 | 备注 |
+| :--- | :--- | :--- | :--- |
+| P1 | idea-20260129-lifeos | 个人成长 | 本 Memory System |
+| P2 | | | |
