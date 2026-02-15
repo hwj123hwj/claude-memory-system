@@ -4,15 +4,13 @@ type: wealth
 tags: [car, purchase, savings, big_ticket, planning]
 source: chat
 created_at: 2026-02-14T23:50:00
-updated_at: 2026-02-15T00:00:00
+updated_at: 2026-02-14T23:50:00
 confidence: medium
-archived: true
 ---
 
 # 🚗 年底购车计划 (Car Purchase Plan 2026)
 
 > **创建日期**: 2026-02-14
-> **归档日期**: 2026-02-15 (从 00_Inbox 归档到 30_Wealth)
 > **计划购车时间**: 2026年12月
 > **计划性质**: 大额资产配置决策
 

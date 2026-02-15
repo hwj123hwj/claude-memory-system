@@ -18,6 +18,7 @@ from conversation_session import resolve_session_id
 from memory_context import build_memory_context, is_memory_query
 from memory_stage1 import create_inbox_note, ensure_memory_layout
 from prompt_builder import build_effective_prompt
+from runtime_config import load_runtime_config
 from stale_client_cleanup import schedule_stale_client_cleanup
 
 try:
@@ -42,6 +43,7 @@ except Exception:  # pragma: no cover
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = WORKSPACE_ROOT / "static"
 LOG_DIR = WORKSPACE_ROOT / "logs"
+RUNTIME_CONFIG = load_runtime_config(WORKSPACE_ROOT / ".env")
 
 ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Glob", "Grep", "LS"]
 
@@ -248,7 +250,7 @@ async def get_client(force_new: bool = False) -> ClaudeSDKClient:
             STALE_CLEANUP_TASK = asyncio.create_task(
                 schedule_stale_client_cleanup(
                     STALE_CLIENTS,
-                    delay_seconds=20,
+                    delay_seconds=RUNTIME_CONFIG.stale_client_delay_seconds,
                     sleep_func=asyncio.sleep,
                 )
             )
@@ -265,7 +267,7 @@ async def get_client(force_new: bool = False) -> ClaudeSDKClient:
                 allowed_tools=ALLOWED_TOOLS,
                 can_use_tool=can_use_tool,
                 permission_mode="default",
-                max_turns=30,
+                max_turns=RUNTIME_CONFIG.max_turns,
                 setting_sources=["project"],
             )
             client = ClaudeSDKClient(options=options)
@@ -305,7 +307,7 @@ async def on_startup() -> None:
 async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
     effective_prompt = build_effective_prompt(prompt)
     if is_memory_query(prompt):
-        memory_ctx = build_memory_context(WORKSPACE_ROOT)
+        memory_ctx = await build_memory_context_async(WORKSPACE_ROOT)
         effective_prompt = (
             f"{effective_prompt}\n\n"
             "以下是已从工作区读取到的 memory 文件上下文，请基于这些内容给出“个人记忆概要”：\n"
@@ -386,6 +388,10 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     )
     logger.log_event("response", {"reply": reply})
     return reply, logger.path
+
+
+async def build_memory_context_async(root: Path) -> str:
+    return await asyncio.to_thread(build_memory_context, root)
 
 
 @app.get("/")

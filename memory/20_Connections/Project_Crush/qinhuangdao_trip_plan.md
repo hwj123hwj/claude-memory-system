@@ -4,15 +4,13 @@ type: connections
 tags: [travel, qinhuangdao, dating, rafting, weekend_trip]
 source: chat
 created_at: 2026-02-14T23:45:00
-updated_at: 2026-02-15T00:00:00
+updated_at: 2026-02-14T23:45:00
 confidence: high
-archived: true
 ---
 
 # 🏖️ 秦皇岛周末之旅计划
 
 > **创建日期**: 2026-02-14
-> **归档日期**: 2026-02-15 (从 00_Inbox 归档到 20_Connections/Project_Crush)
 > **计划时间**: 下周末 (2026-02-22/23, 具体待定)
 > **旅行性质**: 情侣旅行/关系升温
 
