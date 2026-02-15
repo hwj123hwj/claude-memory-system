@@ -19,7 +19,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
-          request_pty: false
           debug: true
           timeout: 30s
           command_timeout: 15m
@@ -44,11 +43,29 @@ jobs:
             git remote -v
 
             echo "=== stopping services ==="
-            pgrep -f "feishu_ws_bridge.py" | xargs kill -15 2>/dev/null || true
-            pgrep -f "uvicorn app:app" | xargs kill -15 2>/dev/null || true
+            # feishu_ws_bridge
+            if pids=$(pgrep -f "feishu_ws_bridge.py"); then
+              echo "Stopping feishu_ws_bridge: $pids"
+              kill -TERM $pids 2>/dev/null || true
+            else
+              echo "No feishu_ws_bridge process"
+            fi
+
+            # uvicorn
+            if pids=$(pgrep -f "uvicorn app:app"); then
+              echo "Stopping uvicorn: $pids"
+              kill -TERM $pids 2>/dev/null || true
+            else
+              echo "No uvicorn process"
+            fi
+
             sleep 3
-            pgrep -f "feishu_ws_bridge.py" | xargs kill -9 2>/dev/null || true
-            pgrep -f "uvicorn app:app" | xargs kill -9 2>/dev/null || true
+
+            # force kill if still running (never fail)
+            pgrep -f "feishu_ws_bridge.py" | xargs -r kill -KILL 2>/dev/null || true
+            pgrep -f "uvicorn app:app" | xargs -r kill -KILL 2>/dev/null || true
+
+            echo "Services stopped (best-effort)"
 
             echo "=== updating code ==="
             git fetch origin
