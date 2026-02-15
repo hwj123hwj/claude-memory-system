@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
 import asyncio
+import shlex
+from contextlib import suppress
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,7 @@ from conversation_session import resolve_session_id
 from memory_context import build_memory_context, is_memory_query
 from memory_stage1 import create_inbox_note, ensure_memory_layout
 from prompt_builder import build_effective_prompt
+from stale_client_cleanup import schedule_stale_client_cleanup
 
 try:
     from claude_agent_sdk import (
@@ -53,6 +56,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 CURRENT_LOGGER: ContextVar[SessionLogger | None] = ContextVar("CURRENT_LOGGER", default=None)
 CLIENT: ClaudeSDKClient | None = None
+ACTIVE_CONVERSATION_ID: str | None = None
+STALE_CLIENTS: list[ClaudeSDKClient] = []
+STALE_CLEANUP_TASK: asyncio.Task | None = None
 CLIENT_INIT_LOCK = asyncio.Lock()
 CLIENT_QUERY_LOCK = asyncio.Lock()
 
@@ -83,6 +89,113 @@ class MemoryCaptureResponse(BaseModel):
     message: str
 
 
+SAFE_BASH_COMMANDS = {
+    "rm",
+    "mv",
+    "cp",
+    "mkdir",
+    "ls",
+    "cat",
+    "del",
+    "move",
+    "copy",
+    "ren",
+    "rename",
+    "remove-item",
+    "move-item",
+    "copy-item",
+    "new-item",
+    "get-childitem",
+}
+UNSAFE_BASH_TOKENS = {"&&", "||", ";", "|", ">", "<", "$(", "`"}
+
+
+def _block_text(block: Any) -> str | None:
+    if isinstance(block, dict):
+        text = block.get("text")
+        if isinstance(text, str):
+            return text
+        content = block.get("content")
+        if isinstance(content, str):
+            return content
+        return None
+    text = getattr(block, "text", None)
+    if isinstance(text, str):
+        return text
+    content = getattr(block, "content", None)
+    if isinstance(content, str):
+        return content
+    return None
+
+
+def _block_is_error(block: Any) -> bool:
+    if isinstance(block, dict):
+        return bool(block.get("is_error"))
+    return bool(getattr(block, "is_error", False))
+
+
+def build_reply_text(
+    chunks: list[str],
+    tool_errors: list[str],
+    interrupted: bool,
+    result_is_error: bool,
+    result_subtype: str | None,
+    log_path: Path,
+) -> str:
+    reply = "\n".join(x for x in chunks if x and x.strip()).strip()
+    if reply:
+        return reply
+
+    if tool_errors:
+        return f"执行失败：{tool_errors[-1]}\n日志文件：{log_path}"
+
+    if interrupted or result_is_error or result_subtype == "error_during_execution":
+        return f"执行中断，未产生可显示文本输出。日志文件：{log_path}"
+
+    return f"已完成请求，但没有可显示的文本输出。日志文件：{log_path}"
+
+
+def _looks_like_path_token(token: str) -> bool:
+    if not token or token.startswith("-"):
+        return False
+    token = token.strip().strip("\"'")
+    if not token:
+        return False
+    return ("\\" in token) or ("/" in token) or ("." in Path(token).name)
+
+
+def validate_bash_command(command: str, root: Path) -> tuple[bool, str]:
+    if not isinstance(command, str) or not command.strip():
+        return False, "Empty Bash command."
+    if any(x in command for x in UNSAFE_BASH_TOKENS):
+        return False, "Unsafe Bash syntax is not allowed."
+
+    try:
+        tokens = shlex.split(command, posix=False)
+    except ValueError:
+        return False, "Unable to parse Bash command."
+    if not tokens:
+        return False, "Empty Bash command."
+
+    cmd_name = tokens[0].lower()
+    if cmd_name not in SAFE_BASH_COMMANDS:
+        return False, f"Bash command '{tokens[0]}' is not allowed."
+
+    for token in tokens[1:]:
+        if not _looks_like_path_token(token):
+            continue
+        candidate = Path(token.strip().strip("\"'"))
+        if not candidate.is_absolute():
+            candidate = (root / candidate).resolve()
+        else:
+            candidate = candidate.resolve()
+        workspace = root.resolve()
+        if candidate != workspace and workspace not in candidate.parents:
+            return False, f"Path denied for Bash: {candidate}"
+
+    return True, "ok"
+
+
 async def can_use_tool(
     tool_name: str,
     input_data: dict[str, Any],
@@ -96,9 +209,15 @@ async def can_use_tool(
         logger.log_event("permission_check", {"tool_name": tool_name, "input": payload})
 
     if tool_name == "Bash":
+        command = payload.get("command", "")
+        ok, reason = validate_bash_command(str(command), WORKSPACE_ROOT)
+        if not ok:
+            if logger:
+                logger.log_event("permission_deny", {"tool_name": tool_name, "reason": reason})
+            return PermissionResultDeny(message=reason, interrupt=True)
         if logger:
-            logger.log_event("permission_deny", {"tool_name": tool_name, "reason": "bash_disabled"})
-        return PermissionResultDeny(message="Bash is disabled for this web agent.", interrupt=True)
+            logger.log_event("permission_allow", {"tool_name": tool_name, "policy": "safe_bash_only"})
+        return PermissionResultAllow(updated_input=payload)
 
     if not is_tool_input_within_root(payload, WORKSPACE_ROOT):
         reason = f"Path denied: only files under {WORKSPACE_ROOT} are allowed."
@@ -111,13 +230,28 @@ async def can_use_tool(
     return PermissionResultAllow(updated_input=payload)
 
 
-async def get_client() -> ClaudeSDKClient:
+async def get_client(force_new: bool = False) -> ClaudeSDKClient:
     global CLIENT
+    global STALE_CLEANUP_TASK
     if ClaudeSDKClient is None or ClaudeAgentOptions is None:
         raise HTTPException(
             status_code=500,
             detail="claude-agent-sdk is not installed. Run: pip install claude-agent-sdk",
         )
+
+    if force_new and CLIENT is not None:
+        # Keep old client alive to avoid SDK reconnect edge-case crashes.
+        # It will be cleaned up by delayed cleanup task.
+        STALE_CLIENTS.append(CLIENT)
+        CLIENT = None
+        if STALE_CLEANUP_TASK is None or STALE_CLEANUP_TASK.done():
+            STALE_CLEANUP_TASK = asyncio.create_task(
+                schedule_stale_client_cleanup(
+                    STALE_CLIENTS,
+                    delay_seconds=20,
+                    sleep_func=asyncio.sleep,
+                )
+            )
 
     if CLIENT is not None:
         return CLIENT
@@ -132,6 +266,7 @@ async def get_client() -> ClaudeSDKClient:
                 can_use_tool=can_use_tool,
                 permission_mode="default",
                 max_turns=30,
+                setting_sources=["project"],
             )
             client = ClaudeSDKClient(options=options)
             await client.connect()
@@ -142,9 +277,24 @@ async def get_client() -> ClaudeSDKClient:
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     global CLIENT
+    global STALE_CLEANUP_TASK
+    if STALE_CLEANUP_TASK is not None:
+        STALE_CLEANUP_TASK.cancel()
+        with suppress(Exception):
+            await STALE_CLEANUP_TASK
+        STALE_CLEANUP_TASK = None
     if CLIENT is not None:
-        await CLIENT.disconnect()
+        try:
+            await CLIENT.disconnect()
+        except Exception:
+            pass
         CLIENT = None
+    for c in STALE_CLIENTS:
+        try:
+            await c.disconnect()
+        except Exception:
+            pass
+    STALE_CLIENTS.clear()
 
 
 @app.on_event("startup")
@@ -152,7 +302,7 @@ async def on_startup() -> None:
     ensure_memory_layout(WORKSPACE_ROOT)
 
 
-async def run_agent(prompt: str, session_id: str) -> tuple[str, Path]:
+async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
     effective_prompt = build_effective_prompt(prompt)
     if is_memory_query(prompt):
         memory_ctx = build_memory_context(WORKSPACE_ROOT)
@@ -169,19 +319,32 @@ async def run_agent(prompt: str, session_id: str) -> tuple[str, Path]:
             "effective_prompt": effective_prompt,
             "cwd": str(WORKSPACE_ROOT),
             "allowed_tools": ALLOWED_TOOLS,
-            "session_id": session_id,
+            "conversation_id": conversation_id,
+            "force_new_client": force_new_client,
         },
     )
 
     token = CURRENT_LOGGER.set(logger)
     chunks: list[str] = []
+    tool_errors: list[str] = []
+    interrupted = False
+    result_is_error = False
+    result_subtype: str | None = None
 
     try:
-        client = await get_client()
+        client = await get_client(force_new=force_new_client)
         async with CLIENT_QUERY_LOCK:
-            await client.query(effective_prompt, session_id=session_id)
+            await client.query(effective_prompt)
             async for message in client.receive_response():
                 logger.log_event("message", serialize_message(message))
+
+                if hasattr(message, "content"):
+                    for block in getattr(message, "content", []):
+                        block_text = _block_text(block)
+                        if block_text == "[Request interrupted by user for tool use]":
+                            interrupted = True
+                        if block_text and _block_is_error(block):
+                            tool_errors.append(block_text)
 
                 if AssistantMessage is not None and isinstance(message, AssistantMessage):
                     for block in getattr(message, "content", []):
@@ -199,6 +362,11 @@ async def run_agent(prompt: str, session_id: str) -> tuple[str, Path]:
                 ):
                     chunks.append(getattr(message, "result"))
 
+                if hasattr(message, "subtype") and isinstance(getattr(message, "subtype"), str):
+                    result_subtype = getattr(message, "subtype")
+                if hasattr(message, "is_error") and isinstance(getattr(message, "is_error"), bool):
+                    result_is_error = bool(getattr(message, "is_error"))
+
                 if ResultMessage is not None and isinstance(message, ResultMessage):
                     break
 
@@ -208,9 +376,14 @@ async def run_agent(prompt: str, session_id: str) -> tuple[str, Path]:
     finally:
         CURRENT_LOGGER.reset(token)
 
-    reply = "\n".join(x for x in chunks if x and x.strip()).strip()
-    if not reply:
-        reply = f"已完成请求，但没有可显示的文本输出。日志文件：{logger.path}"
+    reply = build_reply_text(
+        chunks=chunks,
+        tool_errors=tool_errors,
+        interrupted=interrupted,
+        result_is_error=result_is_error,
+        result_subtype=result_subtype,
+        log_path=logger.path,
+    )
     logger.log_event("response", {"reply": reply})
     return reply, logger.path
 
@@ -222,8 +395,17 @@ async def index() -> FileResponse:
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
+    global ACTIVE_CONVERSATION_ID
     session_id, is_new = resolve_session_id(payload.conversation_id, payload.new_conversation)
-    reply, log_path = await run_agent(payload.message, session_id)
+    force_new_client = False
+    if is_new or ACTIVE_CONVERSATION_ID is None:
+        force_new_client = True
+        ACTIVE_CONVERSATION_ID = session_id
+    elif payload.conversation_id and payload.conversation_id != ACTIVE_CONVERSATION_ID:
+        force_new_client = True
+        ACTIVE_CONVERSATION_ID = session_id
+
+    reply, log_path = await run_agent(payload.message, session_id, force_new_client)
     return ChatResponse(
         reply=reply,
         workspace=str(WORKSPACE_ROOT),
