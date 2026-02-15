@@ -1,6 +1,9 @@
 ﻿from __future__ import annotations
 
+import json
 from pathlib import Path
+
+from memory_index import INDEX_FILE_NAME, write_memory_index
 
 
 def is_memory_query(text: str) -> bool:
@@ -8,31 +11,33 @@ def is_memory_query(text: str) -> bool:
     return any(k in text for k in ("记忆", "个人记忆", "记忆系统")) or "memory" in lower
 
 
-def build_memory_context(root: Path, max_files: int = 12, max_chars: int = 12000) -> str:
+def build_memory_context(root: Path, max_entries: int = 50) -> str:
     memory_root = root / "memory"
     if not memory_root.exists() or not memory_root.is_dir():
         return f"memory 目录不存在：{memory_root}"
 
-    files = sorted(
-        [
-            p
-            for p in memory_root.rglob("*")
-            if p.is_file() and p.suffix.lower() in {".md", ".yaml", ".yml"}
-        ]
-    )[:max_files]
+    index_path = write_memory_index(root)
+    raw = index_path.read_text(encoding="utf-8", errors="ignore")
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return f"memory 索引解析失败：{index_path}"
 
-    parts: list[str] = [f"memory 根目录：{memory_root}", "文件列表："]
-    for p in files:
-        parts.append(f"- {p.relative_to(root)}")
+    parts: list[str] = [
+        f"memory 根目录：{memory_root}",
+        f"索引文件：memory/{INDEX_FILE_NAME}",
+        "索引条目：",
+    ]
+    files = data.get("files", [])
+    for item in files[:max_entries]:
+        path = item.get("path", "")
+        title = item.get("title", "")
+        memory_type = item.get("type", "")
+        tags = item.get("tags", [])
+        updated_at = item.get("updated_at", "")
+        parts.append(
+            f"- {path} | title={title} | type={memory_type} | tags={tags} | updated_at={updated_at}"
+        )
 
-    used = 0
-    for p in files:
-        if used >= max_chars:
-            break
-        text = p.read_text(encoding="utf-8", errors="ignore")
-        remain = max_chars - used
-        snippet = text[:remain]
-        used += len(snippet)
-        parts.append(f"\n### {p.relative_to(root)}\n{snippet}")
-
+    parts.append("说明：以上是 memory 索引。请先基于索引判断相关文件，再按需使用 Read 工具读取正文细节。")
     return "\n".join(parts)

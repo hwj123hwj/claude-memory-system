@@ -12,5 +12,6 @@ def test_is_memory_query() -> None:
 def test_build_memory_context_includes_memory_paths() -> None:
     root = Path(__file__).resolve().parents[1]
     text = build_memory_context(root)
-    assert "memory/" in text.replace("\\", "/")
-    assert "文件列表" in text
+    normalized = text.replace("\\", "/")
+    assert "memory/_index.json" in normalized
+    assert "索引条目" in text

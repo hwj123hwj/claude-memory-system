@@ -9,6 +9,7 @@ from pathlib import Path
 class RuntimeConfig:
     max_turns: int = 30
     stale_client_delay_seconds: int = 20
+    memory_index_max_entries: int = 50
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -44,7 +45,12 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         "STALE_CLIENT_DELAY_SECONDS",
         file_env.get("STALE_CLIENT_DELAY_SECONDS"),
     )
+    memory_index_max_entries_raw = os.getenv(
+        "MEMORY_INDEX_MAX_ENTRIES",
+        file_env.get("MEMORY_INDEX_MAX_ENTRIES"),
+    )
     return RuntimeConfig(
         max_turns=_parse_positive_int(max_turns_raw, 30),
         stale_client_delay_seconds=_parse_positive_int(stale_delay_raw, 20),
+        memory_index_max_entries=_parse_positive_int(memory_index_max_entries_raw, 50),
     )

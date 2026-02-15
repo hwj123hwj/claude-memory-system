@@ -49,4 +49,4 @@ def test_create_inbox_note_writes_file_under_00_inbox(tmp_path: Path) -> None:
     text = note.read_text(encoding="utf-8")
     assert text.startswith("---\n")
     assert "today note" in text
-
+    assert (root / "memory" / "_index.json").exists()

@@ -4,6 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
+from memory_index import write_memory_index
+
 
 MEMORY_BUCKETS = [
     "00_Inbox",
@@ -19,6 +21,7 @@ def ensure_memory_layout(root: Path) -> Path:
     memory_root.mkdir(parents=True, exist_ok=True)
     for bucket in MEMORY_BUCKETS:
         (memory_root / bucket).mkdir(parents=True, exist_ok=True)
+    write_memory_index(root)
     return memory_root
 
 
@@ -66,5 +69,5 @@ def create_inbox_note(
         source=source,
     )
     path.write_text(f"{frontmatter}\n{content.strip()}\n", encoding="utf-8")
+    write_memory_index(root)
     return path
-

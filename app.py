@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field
 from agent_security import is_tool_input_within_root
 from chat_logging import SessionLogger, serialize_message
 from conversation_session import resolve_session_id
-from memory_context import build_memory_context, is_memory_query
+from memory_context import build_memory_context
+from memory_index import write_memory_index
 from memory_stage1 import create_inbox_note, ensure_memory_layout
 from prompt_builder import build_effective_prompt
 from runtime_config import load_runtime_config
@@ -87,6 +88,11 @@ class MemoryCaptureRequest(BaseModel):
 
 
 class MemoryCaptureResponse(BaseModel):
+    path: str
+    message: str
+
+
+class MemoryReindexResponse(BaseModel):
     path: str
     message: str
 
@@ -306,13 +312,15 @@ async def on_startup() -> None:
 
 async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
     effective_prompt = build_effective_prompt(prompt)
-    if is_memory_query(prompt):
-        memory_ctx = await build_memory_context_async(WORKSPACE_ROOT)
-        effective_prompt = (
-            f"{effective_prompt}\n\n"
-            "以下是已从工作区读取到的 memory 文件上下文，请基于这些内容给出“个人记忆概要”：\n"
-            f"{memory_ctx}"
-        )
+    memory_ctx = await build_memory_context_async(
+        WORKSPACE_ROOT,
+        RUNTIME_CONFIG.memory_index_max_entries,
+    )
+    effective_prompt = (
+        f"{effective_prompt}\n\n"
+        "以下是已从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需用 Read 工具读取正文：\n"
+        f"{memory_ctx}"
+    )
     logger = SessionLogger(log_dir=LOG_DIR)
     logger.log_event(
         "request",
@@ -390,8 +398,8 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     return reply, logger.path
 
 
-async def build_memory_context_async(root: Path) -> str:
-    return await asyncio.to_thread(build_memory_context, root)
+async def build_memory_context_async(root: Path, max_entries: int) -> str:
+    return await asyncio.to_thread(build_memory_context, root, max_entries)
 
 
 @app.get("/")
@@ -434,3 +442,9 @@ async def memory_capture(payload: MemoryCaptureRequest) -> MemoryCaptureResponse
         path=str(path),
         message="记忆已写入 inbox。后续可再归档到 10/20/30/40 分类目录。",
     )
+
+
+@app.post("/api/memory/reindex", response_model=MemoryReindexResponse)
+async def memory_reindex() -> MemoryReindexResponse:
+    path = await asyncio.to_thread(write_memory_index, WORKSPACE_ROOT)
+    return MemoryReindexResponse(path=str(path), message="记忆索引已重建。")
