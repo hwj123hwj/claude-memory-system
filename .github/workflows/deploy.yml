@@ -76,5 +76,66 @@ jobs:
             echo "=== verifying ==="
             uv run python -c "import sys; print(f'Python {sys.version}')"
 
+            echo "=== restarting services ==="
+
+            # 1. 停止旧服务
+            pkill -f "uvicorn app:app" || true
+            pkill -f "feishu_ws_bridge.py" || true
+            sleep 3
+
+            # 强制清理(如果还在运行)
+            pkill -KILL -f "uvicorn app:app" 2>/dev/null || true
+            pkill -KILL -f "feishu_ws_bridge.py" 2>/dev/null || true
+            sleep 1
+
+            # 2. 检查端口
+            if netstat -tlnp 2>/dev/null | grep -q ":8000 "; then
+              echo "WARNING: Port 8000 still in use, forcing cleanup"
+              lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+              sleep 1
+            fi
+
+            # 3. 创建日志目录
+            mkdir -p logs
+
+            # 4. 启动 uvicorn
+            echo "Starting uvicorn..."
+            nohup uv run uvicorn app:app --host 0.0.0.0 --port 8000 > logs/uvicorn.log 2>&1 &
+            UVICORN_PID=$!
+            echo $UVICORN_PID > logs/uvicorn.pid
+
+            # 5. 等待启动
+            sleep 5
+
+            # 6. 验证进程
+            if ! kill -0 $UVICORN_PID 2>/dev/null; then
+              echo "ERROR: uvicorn process died"
+              cat logs/uvicorn.log
+              exit 1
+            fi
+
+            # 7. 验证端口
+            if ! netstat -tlnp 2>/dev/null | grep -q ":8000 "; then
+              echo "ERROR: Port 8000 not listening"
+              cat logs/uvicorn.log
+              exit 1
+            fi
+
+            # 8. 健康检查
+            echo "Running health check..."
+            sleep 2
+            if command -v curl >/dev/null 2>&1; then
+              HEALTH_CHECK=$(curl -s http://localhost:8000/healthz || echo "failed")
+              if echo "$HEALTH_CHECK" | grep -q '"status"'; then
+                echo "Health check passed: $HEALTH_CHECK"
+              else
+                echo "WARNING: Health check failed, but service may be starting"
+              fi
+            fi
+
+            echo "=== services started successfully ==="
+            echo "uvicorn PID: $UVICORN_PID"
+            echo "Logs: logs/uvicorn.log"
+
             echo "=== done ==="
-            echo "Services stopped. Restart manually if needed."
+            echo "Deployment completed. Services are running."
