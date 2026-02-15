@@ -16,6 +16,7 @@ class RuntimeConfig:
     feishu_encrypt_key: str = ""
     feishu_verification_token: str = ""
     feishu_agent_timeout_seconds: int = 120
+    feishu_max_reply_chars: int = 1500
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -76,6 +77,10 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         "FEISHU_AGENT_TIMEOUT_SECONDS",
         file_env.get("FEISHU_AGENT_TIMEOUT_SECONDS"),
     )
+    feishu_max_reply_chars_raw = os.getenv(
+        "FEISHU_MAX_REPLY_CHARS",
+        file_env.get("FEISHU_MAX_REPLY_CHARS"),
+    )
     return RuntimeConfig(
         max_turns=_parse_positive_int(max_turns_raw, 30),
         stale_client_delay_seconds=_parse_positive_int(stale_delay_raw, 20),
@@ -86,4 +91,5 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         feishu_encrypt_key=feishu_encrypt_key,
         feishu_verification_token=feishu_verification_token,
         feishu_agent_timeout_seconds=_parse_positive_int(feishu_agent_timeout_raw, 120),
+        feishu_max_reply_chars=_parse_positive_int(feishu_max_reply_chars_raw, 1500),
     )

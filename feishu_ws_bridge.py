@@ -52,6 +52,48 @@ def _parse_text_content(raw: str) -> str:
     return raw.strip()
 
 
+def _normalize_outgoing_text(text: str) -> str:
+    if not isinstance(text, str):
+        text = str(text)
+    return text.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
+
+
+def _split_text_for_feishu(text: str, max_chars: int) -> list[str]:
+    normalized = _normalize_outgoing_text(text)
+    if max_chars <= 0:
+        max_chars = 1500
+    if len(normalized) <= max_chars:
+        return [normalized]
+
+    parts: list[str] = []
+    current = ""
+    for line in normalized.split("\n"):
+        if len(line) > max_chars:
+            if current:
+                parts.append(current)
+                current = ""
+            for i in range(0, len(line), max_chars):
+                parts.append(line[i : i + max_chars])
+            continue
+
+        if not current:
+            current = line
+            continue
+
+        candidate = f"{current}\n{line}"
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            parts.append(current)
+            current = line
+
+    if current:
+        parts.append(current)
+    if not parts:
+        return [normalized]
+    return parts
+
+
 class FeishuWSBridge:
     def __init__(
         self,
@@ -60,18 +102,20 @@ class FeishuWSBridge:
         encrypt_key: str = "",
         verification_token: str = "",
         agent_timeout_seconds: int = 120,
+        max_reply_chars: int = 1500,
     ) -> None:
         self.app_id = app_id
         self.app_secret = app_secret
         self.encrypt_key = encrypt_key
         self.verification_token = verification_token
         self.agent_timeout_seconds = max(1, int(agent_timeout_seconds))
+        self.max_reply_chars = max(1, int(max_reply_chars))
         self._chat_locks: dict[str, asyncio.Lock] = {}
         self._chat_locks_guard = asyncio.Lock()
         self._client = None
         self._ws_client = None
 
-    def _send_text(self, chat_id: str, text: str) -> None:
+    def _send_text_once(self, chat_id: str, text: str) -> None:
         _logger.info("send -> chat_id=%s text=%s", chat_id, text[:200])
         request = (
             CreateMessageRequest.builder()
@@ -87,6 +131,11 @@ class FeishuWSBridge:
         )
         resp = self._client.im.v1.message.create(request)
         _logger.info("send <- chat_id=%s code=%s", chat_id, getattr(resp, "code", None))
+
+    def _send_text(self, chat_id: str, text: str) -> None:
+        chunks = _split_text_for_feishu(text, self.max_reply_chars)
+        for chunk in chunks:
+            self._send_text_once(chat_id, chunk)
 
     async def _handle_text_async(self, chat_id: str, text: str) -> None:
         try:
@@ -196,6 +245,7 @@ def main() -> None:
         encrypt_key=cfg.feishu_encrypt_key,
         verification_token=cfg.feishu_verification_token,
         agent_timeout_seconds=cfg.feishu_agent_timeout_seconds,
+        max_reply_chars=cfg.feishu_max_reply_chars,
     )
     bridge.start()
 
