@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from agent_security import is_tool_input_within_root
 from chat_logging import SessionLogger, serialize_message
 from conversation_session import resolve_session_id
-from feishu_client import FeishuClient, parse_feishu_text_content
 from memory_context import build_memory_context
 from memory_index import write_memory_index
 from memory_stage1 import create_inbox_note, ensure_memory_layout
@@ -97,11 +96,6 @@ class MemoryCaptureResponse(BaseModel):
 class MemoryReindexResponse(BaseModel):
     path: str
     message: str
-
-
-class FeishuWebhookResponse(BaseModel):
-    status: str
-    detail: str | None = None
 
 
 SAFE_BASH_COMMANDS = {
@@ -409,25 +403,6 @@ async def build_memory_context_async(root: Path, max_entries: int) -> str:
     return await asyncio.to_thread(build_memory_context, root, max_entries)
 
 
-def _get_feishu_client() -> FeishuClient:
-    if not RUNTIME_CONFIG.feishu_app_id or not RUNTIME_CONFIG.feishu_app_secret:
-        raise RuntimeError("Missing FEISHU_APP_ID or FEISHU_APP_SECRET in .env")
-    return FeishuClient(
-        app_id=RUNTIME_CONFIG.feishu_app_id,
-        app_secret=RUNTIME_CONFIG.feishu_app_secret,
-    )
-
-
-async def send_feishu_text(*, receive_id: str, text: str, receive_id_type: str = "chat_id") -> dict:
-    client = _get_feishu_client()
-    return await asyncio.to_thread(
-        client.send_text,
-        receive_id=receive_id,
-        text=text,
-        receive_id_type=receive_id_type,
-    )
-
-
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
@@ -474,35 +449,3 @@ async def memory_capture(payload: MemoryCaptureRequest) -> MemoryCaptureResponse
 async def memory_reindex() -> MemoryReindexResponse:
     path = await asyncio.to_thread(write_memory_index, WORKSPACE_ROOT)
     return MemoryReindexResponse(path=str(path), message="记忆索引已重建。")
-
-
-@app.post("/api/feishu/webhook")
-async def feishu_webhook(payload: dict[str, Any]) -> dict[str, Any]:
-    challenge = payload.get("challenge")
-    if isinstance(challenge, str) and challenge:
-        return {"challenge": challenge}
-
-    event = payload.get("event") if isinstance(payload.get("event"), dict) else {}
-    sender = event.get("sender") if isinstance(event.get("sender"), dict) else {}
-    if sender.get("sender_type") == "bot":
-        return FeishuWebhookResponse(status="ignored", detail="bot_message").model_dump()
-
-    message = event.get("message") if isinstance(event.get("message"), dict) else {}
-    message_type = message.get("message_type")
-    if message_type != "text":
-        return FeishuWebhookResponse(status="ignored", detail="unsupported_message_type").model_dump()
-
-    chat_id = message.get("chat_id")
-    content = parse_feishu_text_content(str(message.get("content", "")))
-    if not isinstance(chat_id, str) or not chat_id:
-        return FeishuWebhookResponse(status="ignored", detail="missing_chat_id").model_dump()
-    if not content:
-        return FeishuWebhookResponse(status="ignored", detail="empty_text").model_dump()
-
-    reply, _ = await run_agent(content, f"feishu:{chat_id}", False)
-    try:
-        await send_feishu_text(receive_id=chat_id, text=reply)
-    except Exception as exc:
-        return FeishuWebhookResponse(status="error", detail=str(exc)).model_dump()
-
-    return FeishuWebhookResponse(status="ok").model_dump()

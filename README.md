@@ -36,6 +36,10 @@ Requirements:
 - Configure `FEISHU_APP_ID` and `FEISHU_APP_SECRET` in `.env`
 - Enable Feishu event delivery in long-connection mode for your app
 
+Note:
+- HTTP webhook mode has been removed from backend routes.
+- Feishu messages are handled only by `feishu_ws_bridge.py`.
+
 ## Example Prompt
 
 ```text
