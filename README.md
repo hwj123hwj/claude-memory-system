@@ -24,6 +24,18 @@ uvicorn app:app --reload --port 8000
 
 Open: `http://127.0.0.1:8000`
 
+## Feishu (Local, No Public URL)
+
+This project supports Feishu long-connection mode (websocket), which does not require exposing your local server to the public internet.
+
+```bash
+python feishu_ws_bridge.py
+```
+
+Requirements:
+- Configure `FEISHU_APP_ID` and `FEISHU_APP_SECRET` in `.env`
+- Enable Feishu event delivery in long-connection mode for your app
+
 ## Example Prompt
 
 ```text
