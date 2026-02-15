@@ -2,11 +2,18 @@
 
 This project provides a web chat UI that routes prompts to Claude Code SDK.
 
+## Docs
+
+- `docs/AGENT_IMPLEMENTATION_PROMPT.md`
+- `docs/开发总结.md`
+- `docs/开发问题与解决记录.md`
+- `docs/claude agent sdk使用文档.md`
+
 ## Scope Restriction
 
 - Workspace root is fixed to the current folder: `D:\develop\test`
 - Tool inputs with paths outside workspace are denied
-- `Bash` is disabled in the permission handler
+- `Bash` is restricted by a safe-command allowlist and workspace-path checks
 
 ## Quick Start
 
@@ -26,6 +33,5 @@ Open: `http://127.0.0.1:8000`
 ## Test
 
 ```bash
-pytest -q
+pytest -q tests
 ```
-
