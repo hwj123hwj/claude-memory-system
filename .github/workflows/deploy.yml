@@ -13,69 +13,84 @@ jobs:
 
     steps:
       - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           request_pty: false
-          script_stop: false
+          debug: true
+          timeout: 30s
+          command_timeout: 10m
           script: |
-            echo "=== Starting deployment at $(date) ==="
+            set -e
+
+            echo "=== SSH Connection Established ==="
+            echo "Hostname: $(hostname)"
+            echo "User: $(whoami)"
+            echo "Date: $(date)"
+            echo "Working directory: $(pwd)"
+            echo ""
 
             # 进入项目目录
-            cd /root/claude-memory-system || { echo "Failed to cd"; exit 1; }
-            echo "Working directory: $(pwd)"
+            echo "=== Changing to project directory ==="
+            cd /root/claude-memory-system || { echo "Failed to cd to project"; exit 1; }
+            echo "Current directory: $(pwd)"
+            echo ""
 
-            # 查找并停止服务 (使用 pgrep 避免信号传播)
-            echo "Checking for running services..."
+            # 查找并停止服务
+            echo "=== Checking for running services ==="
             if pgrep -f "feishu_ws_bridge.py" > /dev/null 2>&1; then
-              echo "Found feishu_ws_bridge process, stopping gracefully..."
+              echo "Found feishu_ws_bridge, stopping..."
               pgrep -f "feishu_ws_bridge.py" | xargs kill -15 2>/dev/null || true
             else
-              echo "No feishu_ws_bridge process found"
+              echo "No feishu_ws_bridge process"
             fi
 
             if pgrep -f "uvicorn app:app" > /dev/null 2>&1; then
-              echo "Found uvicorn process, stopping gracefully..."
+              echo "Found uvicorn, stopping..."
               pgrep -f "uvicorn app:app" | xargs kill -15 2>/dev/null || true
             else
-              echo "No uvicorn process found"
+              echo "No uvicorn process"
             fi
 
-            # 等待进程退出
+            echo "Waiting for processes to exit..."
             sleep 3
 
-            # 强制清理残留进程 (如果有的话)
+            # 强制清理
+            echo "=== Force cleanup if needed ==="
             pgrep -f "feishu_ws_bridge.py" | xargs kill -9 2>/dev/null || true
             pgrep -f "uvicorn app:app" | xargs kill -9 2>/dev/null || true
-
             echo "Services stopped"
+            echo ""
 
             # 更新代码
-            echo "Updating code..."
-            git fetch origin || exit 1
-            git reset --hard origin/v1 || exit 1
-            echo "Updated to commit: $(git rev-parse --short HEAD)"
+            echo "=== Updating code ==="
+            git fetch origin
+            git reset --hard origin/v1
+            echo "Updated to: $(git rev-parse --short HEAD)"
+            echo ""
 
             # 检查 uv
-            echo "Checking uv..."
+            echo "=== Checking uv installation ==="
             if ! command -v uv >/dev/null 2>&1; then
               echo "Installing uv..."
               curl -LsSf https://astral.sh/uv/install.sh | sh
               export PATH="$HOME/.cargo/bin:$PATH"
             fi
             uv --version
+            echo ""
 
             # 安装依赖
-            echo "Syncing dependencies..."
-            uv sync --dev || exit 1
+            echo "=== Installing dependencies ==="
+            uv sync --dev
+            echo ""
 
             # 验证
-            echo "Verifying installation..."
-            uv run python -c "import sys; print(f'Python {sys.version}')" || exit 1
-
+            echo "=== Verifying installation ==="
+            uv run python -c "import sys; print(f'Python {sys.version}')"
             echo ""
-            echo "=== Deployment completed at $(date) ==="
-            echo "Services have been stopped. Restart manually if needed."
+
+            echo "=== Deployment completed successfully ==="
+            echo "Services stopped. Restart manually if needed."
