@@ -9,6 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Deploy to server via SSH
@@ -20,8 +21,30 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script_stop: true
           script: |
-            cd /root/claude-memory-system
+            set -e
+
+            echo "=== Starting deployment at $(date) ==="
+
+            cd /root/claude-memory-system || exit 1
+
+            # 停止运行中的服务
+            echo "Stopping services..."
+            pkill -f "feishu_ws_bridge.py" || true
+            pkill -f "uvicorn app:app" || true
+            sleep 2
+
+            # 更新代码
+            echo "Updating code..."
             git fetch origin
             git reset --hard origin/v1
-            git pull origin v1
-            echo "Deployment completed at $(date)"
+
+            # 恢复依赖
+            echo "Installing dependencies..."
+            uv sync --dev
+
+            # 验证依赖
+            echo "Verifying installation..."
+            uv run pytest --version
+
+            echo "=== Deployment completed at $(date) ==="
+            echo "Please manually restart services if needed."
