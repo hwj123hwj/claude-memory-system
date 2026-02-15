@@ -18,79 +18,56 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
+          port: 22
           request_pty: false
           debug: true
           timeout: 30s
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
             set -e
+            set -x
 
-            echo "=== SSH Connection Established ==="
-            echo "Hostname: $(hostname)"
-            echo "User: $(whoami)"
-            echo "Date: $(date)"
-            echo "Working directory: $(pwd)"
-            echo ""
+            date
+            echo "=== SSH OK ==="
+            whoami
+            hostname
 
-            # 进入项目目录
-            echo "=== Changing to project directory ==="
-            cd /root/claude-memory-system || { echo "Failed to cd to project"; exit 1; }
-            echo "Current directory: $(pwd)"
-            echo ""
+            cd /root/claude-memory-system
 
-            # 查找并停止服务
-            echo "=== Checking for running services ==="
-            if pgrep -f "feishu_ws_bridge.py" > /dev/null 2>&1; then
-              echo "Found feishu_ws_bridge, stopping..."
-              pgrep -f "feishu_ws_bridge.py" | xargs kill -15 2>/dev/null || true
-            else
-              echo "No feishu_ws_bridge process"
-            fi
+            # 禁止 Git 交互提示
+            export GIT_TERMINAL_PROMPT=0
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null || true
 
-            if pgrep -f "uvicorn app:app" > /dev/null 2>&1; then
-              echo "Found uvicorn, stopping..."
-              pgrep -f "uvicorn app:app" | xargs kill -15 2>/dev/null || true
-            else
-              echo "No uvicorn process"
-            fi
+            echo "=== git remote ==="
+            git remote -v
 
-            echo "Waiting for processes to exit..."
+            echo "=== stopping services ==="
+            pgrep -f "feishu_ws_bridge.py" | xargs kill -15 2>/dev/null || true
+            pgrep -f "uvicorn app:app" | xargs kill -15 2>/dev/null || true
             sleep 3
-
-            # 强制清理
-            echo "=== Force cleanup if needed ==="
             pgrep -f "feishu_ws_bridge.py" | xargs kill -9 2>/dev/null || true
             pgrep -f "uvicorn app:app" | xargs kill -9 2>/dev/null || true
-            echo "Services stopped"
-            echo ""
 
-            # 更新代码
-            echo "=== Updating code ==="
+            echo "=== updating code ==="
             git fetch origin
             git reset --hard origin/v1
-            echo "Updated to: $(git rev-parse --short HEAD)"
-            echo ""
+            git rev-parse --short HEAD
 
-            # 检查 uv
-            echo "=== Checking uv installation ==="
+            echo "=== checking uv ==="
             if ! command -v uv >/dev/null 2>&1; then
-              echo "Installing uv..."
               curl -LsSf https://astral.sh/uv/install.sh | sh
               export PATH="$HOME/.cargo/bin:$PATH"
             fi
             uv --version
-            echo ""
 
-            # 安装依赖
-            echo "=== Installing dependencies ==="
-            uv sync --dev
-            echo ""
+            echo "=== installing dependencies ==="
+            export UV_HTTP_TIMEOUT=60
+            uv sync --dev -v
 
-            # 验证
-            echo "=== Verifying installation ==="
+            echo "=== verifying ==="
             uv run python -c "import sys; print(f'Python {sys.version}')"
-            echo ""
 
-            echo "=== Deployment completed successfully ==="
+            echo "=== done ==="
             echo "Services stopped. Restart manually if needed."
