@@ -42,16 +42,9 @@ jobs:
             echo "=== git remote ==="
             git remote -v
 
-            echo "=== stopping services ==="
-            trap '' TERM
-
-            pkill -TERM -f "feishu_ws_bridge.py" || true
-            pkill -TERM -f "uvicorn app:app" || true
-            sleep 3
-            pkill -KILL -f "feishu_ws_bridge.py" || true
-            pkill -KILL -f "uvicorn app:app" || true
-
-            echo "Services stopped (best-effort)"
+            echo "=== skipping service stop (manual restart required) ==="
+            echo "Note: Services will NOT be stopped automatically"
+            echo "Please restart manually after deployment if needed"
 
             echo "=== updating code ==="
             git fetch origin
