@@ -31,7 +31,18 @@ jobs:
             whoami
             hostname
 
+            # 确保项目目录存在
+            mkdir -p /root/claude-memory-system
             cd /root/claude-memory-system
+
+            # 如果目录是空的,初始化 git
+            if [ ! -d .git ]; then
+              echo "=== initializing git repo ==="
+              git clone git@github.com:hwj123hwj/claude-memory-system.git temp
+              mv temp/.git .
+              rm -rf temp
+              git reset --hard HEAD
+            fi
 
             # 禁止 Git 交互提示
             export GIT_TERMINAL_PROMPT=0
