@@ -19,21 +19,31 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
+          request_pty: false
           script_stop: false
           script: |
-            set +e  # 不在第一个错误时退出
-
             echo "=== Starting deployment at $(date) ==="
 
             # 进入项目目录
-            cd /root/claude-memory-system || exit 1
+            cd /root/claude-memory-system || { echo "Failed to cd to project"; exit 1; }
             echo "Current directory: $(pwd)"
 
-            # 停止运行中的服务 (容错处理)
+            # 停止运行中的服务 (使用 trap 捕获信号)
             echo "Stopping services..."
-            pkill -f "feishu_ws_bridge.py" 2>/dev/null || echo "No feishu_ws_bridge process found"
-            pkill -f "uvicorn app:app" 2>/dev/null || echo "No uvicorn process found"
-            sleep 3
+            {
+              pkill -f "feishu_ws_bridge.py" && echo "Stopped feishu_ws_bridge"
+            } || {
+              echo "No feishu_ws_bridge process running"
+            }
+
+            {
+              pkill -f "uvicorn app:app" && echo "Stopped uvicorn"
+            } || {
+              echo "No uvicorn process running"
+            }
+
+            # 等待进程完全退出
+            sleep 5
 
             # 更新代码
             echo "Updating code..."
@@ -41,12 +51,14 @@ jobs:
             git reset --hard origin/v1 || { echo "Git reset failed"; exit 1; }
             echo "Current commit: $(git rev-parse HEAD)"
 
-            # 检查 uv 是否安装
+            # 检查并安装 uv
+            echo "Checking uv installation..."
             if ! command -v uv &> /dev/null; then
-                echo "uv not found, installing..."
+                echo "Installing uv..."
                 curl -LsSf https://astral.sh/uv/install.sh | sh
                 export PATH="$HOME/.local/bin:$PATH"
             fi
+            echo "uv version: $(uv --version)"
 
             # 恢复依赖
             echo "Installing dependencies..."
@@ -54,7 +66,7 @@ jobs:
 
             # 验证安装
             echo "Verifying installation..."
-            uv run pytest --version || echo "Warning: pytest verification failed"
+            uv run python --version || { echo "Python verification failed"; exit 1; }
 
             echo "=== Deployment completed successfully at $(date) ==="
-            echo "Services stopped. Please restart manually if needed."
+            echo "Note: Services are stopped. Please restart them manually."
