@@ -25,48 +25,57 @@ jobs:
             echo "=== Starting deployment at $(date) ==="
 
             # 进入项目目录
-            cd /root/claude-memory-system || { echo "Failed to cd to project"; exit 1; }
-            echo "Current directory: $(pwd)"
+            cd /root/claude-memory-system || { echo "Failed to cd"; exit 1; }
+            echo "Working directory: $(pwd)"
 
-            # 停止运行中的服务 (使用 trap 捕获信号)
-            echo "Stopping services..."
-            {
-              pkill -f "feishu_ws_bridge.py" && echo "Stopped feishu_ws_bridge"
-            } || {
-              echo "No feishu_ws_bridge process running"
-            }
+            # 查找并停止服务 (使用 pgrep 避免信号传播)
+            echo "Checking for running services..."
+            if pgrep -f "feishu_ws_bridge.py" > /dev/null 2>&1; then
+              echo "Found feishu_ws_bridge process, stopping gracefully..."
+              pgrep -f "feishu_ws_bridge.py" | xargs kill -15 2>/dev/null || true
+            else
+              echo "No feishu_ws_bridge process found"
+            fi
 
-            {
-              pkill -f "uvicorn app:app" && echo "Stopped uvicorn"
-            } || {
-              echo "No uvicorn process running"
-            }
+            if pgrep -f "uvicorn app:app" > /dev/null 2>&1; then
+              echo "Found uvicorn process, stopping gracefully..."
+              pgrep -f "uvicorn app:app" | xargs kill -15 2>/dev/null || true
+            else
+              echo "No uvicorn process found"
+            fi
 
-            # 等待进程完全退出
-            sleep 5
+            # 等待进程退出
+            sleep 3
+
+            # 强制清理残留进程 (如果有的话)
+            pgrep -f "feishu_ws_bridge.py" | xargs kill -9 2>/dev/null || true
+            pgrep -f "uvicorn app:app" | xargs kill -9 2>/dev/null || true
+
+            echo "Services stopped"
 
             # 更新代码
             echo "Updating code..."
-            git fetch origin || { echo "Git fetch failed"; exit 1; }
-            git reset --hard origin/v1 || { echo "Git reset failed"; exit 1; }
-            echo "Current commit: $(git rev-parse HEAD)"
+            git fetch origin || exit 1
+            git reset --hard origin/v1 || exit 1
+            echo "Updated to commit: $(git rev-parse --short HEAD)"
 
-            # 检查并安装 uv
-            echo "Checking uv installation..."
-            if ! command -v uv &> /dev/null; then
-                echo "Installing uv..."
-                curl -LsSf https://astral.sh/uv/install.sh | sh
-                export PATH="$HOME/.local/bin:$PATH"
+            # 检查 uv
+            echo "Checking uv..."
+            if ! command -v uv >/dev/null 2>&1; then
+              echo "Installing uv..."
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.cargo/bin:$PATH"
             fi
-            echo "uv version: $(uv --version)"
+            uv --version
 
-            # 恢复依赖
-            echo "Installing dependencies..."
-            uv sync --dev || { echo "uv sync failed"; exit 1; }
+            # 安装依赖
+            echo "Syncing dependencies..."
+            uv sync --dev || exit 1
 
-            # 验证安装
+            # 验证
             echo "Verifying installation..."
-            uv run python --version || { echo "Python verification failed"; exit 1; }
+            uv run python -c "import sys; print(f'Python {sys.version}')" || exit 1
 
-            echo "=== Deployment completed successfully at $(date) ==="
-            echo "Note: Services are stopped. Please restart them manually."
+            echo ""
+            echo "=== Deployment completed at $(date) ==="
+            echo "Services have been stopped. Restart manually if needed."
