@@ -43,27 +43,13 @@ jobs:
             git remote -v
 
             echo "=== stopping services ==="
-            # feishu_ws_bridge
-            if pids=$(pgrep -f "feishu_ws_bridge.py"); then
-              echo "Stopping feishu_ws_bridge: $pids"
-              kill -TERM $pids 2>/dev/null || true
-            else
-              echo "No feishu_ws_bridge process"
-            fi
+            trap '' TERM
 
-            # uvicorn
-            if pids=$(pgrep -f "uvicorn app:app"); then
-              echo "Stopping uvicorn: $pids"
-              kill -TERM $pids 2>/dev/null || true
-            else
-              echo "No uvicorn process"
-            fi
-
+            pkill -TERM -f "feishu_ws_bridge.py" || true
+            pkill -TERM -f "uvicorn app:app" || true
             sleep 3
-
-            # force kill if still running (never fail)
-            pgrep -f "feishu_ws_bridge.py" | xargs -r kill -KILL 2>/dev/null || true
-            pgrep -f "uvicorn app:app" | xargs -r kill -KILL 2>/dev/null || true
+            pkill -KILL -f "feishu_ws_bridge.py" || true
+            pkill -KILL -f "uvicorn app:app" || true
 
             echo "Services stopped (best-effort)"
 
