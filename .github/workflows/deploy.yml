@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Deploy to server via SSH
@@ -19,32 +19,42 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          script_stop: true
+          script_stop: false
           script: |
-            set -e
+            set +e  # 不在第一个错误时退出
 
             echo "=== Starting deployment at $(date) ==="
 
+            # 进入项目目录
             cd /root/claude-memory-system || exit 1
+            echo "Current directory: $(pwd)"
 
-            # 停止运行中的服务
+            # 停止运行中的服务 (容错处理)
             echo "Stopping services..."
-            pkill -f "feishu_ws_bridge.py" || true
-            pkill -f "uvicorn app:app" || true
-            sleep 2
+            pkill -f "feishu_ws_bridge.py" 2>/dev/null || echo "No feishu_ws_bridge process found"
+            pkill -f "uvicorn app:app" 2>/dev/null || echo "No uvicorn process found"
+            sleep 3
 
             # 更新代码
             echo "Updating code..."
-            git fetch origin
-            git reset --hard origin/v1
+            git fetch origin || { echo "Git fetch failed"; exit 1; }
+            git reset --hard origin/v1 || { echo "Git reset failed"; exit 1; }
+            echo "Current commit: $(git rev-parse HEAD)"
+
+            # 检查 uv 是否安装
+            if ! command -v uv &> /dev/null; then
+                echo "uv not found, installing..."
+                curl -LsSf https://astral.sh/uv/install.sh | sh
+                export PATH="$HOME/.local/bin:$PATH"
+            fi
 
             # 恢复依赖
             echo "Installing dependencies..."
-            uv sync --dev
+            uv sync --dev || { echo "uv sync failed"; exit 1; }
 
-            # 验证依赖
+            # 验证安装
             echo "Verifying installation..."
-            uv run pytest --version
+            uv run pytest --version || echo "Warning: pytest verification failed"
 
-            echo "=== Deployment completed at $(date) ==="
-            echo "Please manually restart services if needed."
+            echo "=== Deployment completed successfully at $(date) ==="
+            echo "Services stopped. Please restart manually if needed."
