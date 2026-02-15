@@ -53,11 +53,21 @@ def _parse_text_content(raw: str) -> str:
 
 
 class FeishuWSBridge:
-    def __init__(self, app_id: str, app_secret: str, encrypt_key: str = "", verification_token: str = "") -> None:
+    def __init__(
+        self,
+        app_id: str,
+        app_secret: str,
+        encrypt_key: str = "",
+        verification_token: str = "",
+        agent_timeout_seconds: int = 120,
+    ) -> None:
         self.app_id = app_id
         self.app_secret = app_secret
         self.encrypt_key = encrypt_key
         self.verification_token = verification_token
+        self.agent_timeout_seconds = max(1, int(agent_timeout_seconds))
+        self._chat_locks: dict[str, asyncio.Lock] = {}
+        self._chat_locks_guard = asyncio.Lock()
         self._client = None
         self._ws_client = None
 
@@ -80,7 +90,22 @@ class FeishuWSBridge:
 
     async def _handle_text_async(self, chat_id: str, text: str) -> None:
         try:
-            reply, log_path = await run_agent(text, f"feishu:{chat_id}", False)
+            conversation_id = f"feishu:{chat_id}"
+            try:
+                reply, log_path = await asyncio.wait_for(
+                    run_agent(text, conversation_id, False),
+                    timeout=self.agent_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                _logger.warning(
+                    "agent timeout chat_id=%s after %ss, retry with new client",
+                    chat_id,
+                    self.agent_timeout_seconds,
+                )
+                reply, log_path = await asyncio.wait_for(
+                    run_agent(text, conversation_id, True),
+                    timeout=self.agent_timeout_seconds,
+                )
             _logger.info("agent <- chat_id=%s log=%s", chat_id, log_path)
             self._send_text(chat_id, reply)
         except Exception as exc:
@@ -89,6 +114,19 @@ class FeishuWSBridge:
                 self._send_text(chat_id, f"处理失败：{exc}")
             except Exception:
                 _logger.exception("failed to send error message chat_id=%s", chat_id)
+
+    async def _get_chat_lock(self, chat_id: str) -> asyncio.Lock:
+        async with self._chat_locks_guard:
+            lock = self._chat_locks.get(chat_id)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._chat_locks[chat_id] = lock
+            return lock
+
+    async def _handle_text_serialized(self, chat_id: str, text: str) -> None:
+        lock = await self._get_chat_lock(chat_id)
+        async with lock:
+            await self._handle_text_async(chat_id, text)
 
     def _event_handler(self, data) -> None:  # type: ignore[no-untyped-def]
         try:
@@ -115,9 +153,9 @@ class FeishuWSBridge:
                 loop = None
 
             if loop and loop.is_running():
-                loop.create_task(self._handle_text_async(chat_id, content))
+                loop.create_task(self._handle_text_serialized(chat_id, content))
             else:
-                asyncio.run(self._handle_text_async(chat_id, content))
+                asyncio.run(self._handle_text_serialized(chat_id, content))
         except Exception as exc:
             _logger.exception("event_handler error: %s", exc)
 
@@ -157,6 +195,7 @@ def main() -> None:
         app_secret=cfg.feishu_app_secret,
         encrypt_key=cfg.feishu_encrypt_key,
         verification_token=cfg.feishu_verification_token,
+        agent_timeout_seconds=cfg.feishu_agent_timeout_seconds,
     )
     bridge.start()
 

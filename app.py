@@ -342,7 +342,10 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     result_is_error = False
     result_subtype: str | None = None
 
-    try:
+    async def _query_and_collect() -> None:
+        nonlocal interrupted
+        nonlocal result_is_error
+        nonlocal result_subtype
         client = await get_client(force_new=force_new_client)
         async with CLIENT_QUERY_LOCK:
             await client.query(effective_prompt)
@@ -381,6 +384,23 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
                 if ResultMessage is not None and isinstance(message, ResultMessage):
                     break
 
+    try:
+        await asyncio.wait_for(
+            _query_and_collect(),
+            timeout=RUNTIME_CONFIG.agent_run_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.log_event(
+            "timeout",
+            {"timeout_seconds": RUNTIME_CONFIG.agent_run_timeout_seconds},
+        )
+        return (
+            f"执行超时（{RUNTIME_CONFIG.agent_run_timeout_seconds}s），请重试。日志文件：{logger.path}",
+            logger.path,
+        )
+    except asyncio.CancelledError as exc:
+        logger.log_event("cancelled", {"error": repr(exc)})
+        raise
     except Exception as exc:
         logger.log_event("error", {"error": repr(exc)})
         return f"调用 Claude Code 失败：{exc}\n日志文件：{logger.path}", logger.path
