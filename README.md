@@ -24,6 +24,9 @@ uv run uvicorn app:app --reload --port 8000
 
 Open: `http://127.0.0.1:8000`
 
+Health check:
+- `GET /healthz` returns backend status and Feishu bridge heartbeat status.
+
 ## Feishu (Local, No Public URL)
 
 This project supports Feishu long-connection mode (websocket), which does not require exposing your local server to the public internet.
@@ -39,6 +42,7 @@ Requirements:
 Note:
 - HTTP webhook mode has been removed from backend routes.
 - Feishu messages are handled only by `feishu_ws_bridge.py`.
+- Bridge heartbeat file: `logs/feishu_bridge_heartbeat.json`
 
 ## Example Prompt
 

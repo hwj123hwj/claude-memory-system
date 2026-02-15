@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app import run_agent
@@ -15,6 +18,7 @@ try:
         CreateMessageRequestBody,
         P2ImMessageReceiveV1,
     )
+
     FEISHU_AVAILABLE = True
 except Exception:  # pragma: no cover
     lark = None
@@ -27,6 +31,7 @@ except Exception:  # pragma: no cover
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 LOG_DIR = WORKSPACE_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
 
 _logger = logging.getLogger("feishu_ws_bridge")
 if not _logger.handlers:
@@ -40,57 +45,117 @@ if not _logger.handlers:
     _logger.addHandler(sh)
 
 
+def _write_bridge_heartbeat(event: str, chat_id: str = "") -> None:
+    payload = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "event": event,
+        "chat_id": chat_id,
+        "pid": os.getpid(),
+    }
+    HEARTBEAT_FILE.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+def _sanitize_text(text: str) -> str:
+    if not isinstance(text, str):
+        text = str(text)
+    normalized = unicodedata.normalize("NFC", text)
+    cleaned = normalized.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
+    return "".join(ch for ch in cleaned if ch in {"\n", "\t"} or ord(ch) >= 32)
+
+
 def _parse_text_content(raw: str) -> str:
     if not raw:
         return ""
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        return raw.strip()
+        return _sanitize_text(raw).strip()
     if isinstance(data, dict) and isinstance(data.get("text"), str):
-        return data["text"].strip()
-    return raw.strip()
+        return _sanitize_text(data["text"]).strip()
+    return _sanitize_text(raw).strip()
 
 
 def _normalize_outgoing_text(text: str) -> str:
-    if not isinstance(text, str):
-        text = str(text)
-    return text.replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
+    return _sanitize_text(text)
+
+
+def _split_sentences(text: str) -> list[str]:
+    boundaries = {"。", "！", "？", "!", "?", ";", "；", ".", "\n"}
+    parts: list[str] = []
+    current: list[str] = []
+    for ch in text:
+        current.append(ch)
+        if ch in boundaries:
+            sentence = "".join(current).strip()
+            if sentence:
+                parts.append(sentence)
+            current = []
+    tail = "".join(current).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+def _split_block_semantic(block: str, max_chars: int) -> list[str]:
+    if len(block) <= max_chars:
+        return [block]
+
+    chunks: list[str] = []
+    current = ""
+    for sentence in _split_sentences(block):
+        if len(sentence) > max_chars:
+            if current:
+                chunks.append(current)
+                current = ""
+            for i in range(0, len(sentence), max_chars):
+                piece = sentence[i : i + max_chars].strip()
+                if piece:
+                    chunks.append(piece)
+            continue
+
+        if not current:
+            current = sentence
+            continue
+        candidate = f"{current}{sentence}"
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            chunks.append(current)
+            current = sentence
+
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def _split_text_for_feishu(text: str, max_chars: int) -> list[str]:
-    normalized = _normalize_outgoing_text(text)
+    normalized = _normalize_outgoing_text(text).strip()
     if max_chars <= 0:
         max_chars = 1500
+    if not normalized:
+        return [""]
     if len(normalized) <= max_chars:
         return [normalized]
 
     parts: list[str] = []
     current = ""
-    for line in normalized.split("\n"):
-        if len(line) > max_chars:
-            if current:
+    paragraphs = [p.strip() for p in normalized.split("\n\n") if p.strip()]
+    for paragraph in paragraphs:
+        paragraph_chunks = _split_block_semantic(paragraph, max_chars)
+        for idx, piece in enumerate(paragraph_chunks):
+            if not current:
+                current = piece
+                continue
+            sep = "\n\n" if idx == 0 else "\n"
+            candidate = f"{current}{sep}{piece}"
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
                 parts.append(current)
-                current = ""
-            for i in range(0, len(line), max_chars):
-                parts.append(line[i : i + max_chars])
-            continue
-
-        if not current:
-            current = line
-            continue
-
-        candidate = f"{current}\n{line}"
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            parts.append(current)
-            current = line
+                current = piece
 
     if current:
         parts.append(current)
-    if not parts:
-        return [normalized]
     return parts
 
 
@@ -116,6 +181,7 @@ class FeishuWSBridge:
         self._ws_client = None
 
     def _send_text_once(self, chat_id: str, text: str) -> None:
+        _write_bridge_heartbeat("send_start", chat_id)
         _logger.info("send -> chat_id=%s text=%s", chat_id, text[:200])
         request = (
             CreateMessageRequest.builder()
@@ -131,6 +197,7 @@ class FeishuWSBridge:
         )
         resp = self._client.im.v1.message.create(request)
         _logger.info("send <- chat_id=%s code=%s", chat_id, getattr(resp, "code", None))
+        _write_bridge_heartbeat("send_ok", chat_id)
 
     def _send_text(self, chat_id: str, text: str) -> None:
         chunks = _split_text_for_feishu(text, self.max_reply_chars)
@@ -151,14 +218,17 @@ class FeishuWSBridge:
                     chat_id,
                     self.agent_timeout_seconds,
                 )
+                _write_bridge_heartbeat("agent_timeout_retry", chat_id)
                 reply, log_path = await asyncio.wait_for(
                     run_agent(text, conversation_id, True),
                     timeout=self.agent_timeout_seconds,
                 )
             _logger.info("agent <- chat_id=%s log=%s", chat_id, log_path)
+            _write_bridge_heartbeat("agent_ok", chat_id)
             self._send_text(chat_id, reply)
         except Exception as exc:
             _logger.exception("handle_text_async error chat_id=%s: %s", chat_id, exc)
+            _write_bridge_heartbeat("agent_error", chat_id)
             try:
                 self._send_text(chat_id, f"处理失败：{exc}")
             except Exception:
@@ -195,6 +265,7 @@ class FeishuWSBridge:
             _logger.info("recv <- chat_id=%s type=%s content=%s", chat_id, message_type, content[:200])
             if message_type != "text" or not chat_id or not content:
                 return
+            _write_bridge_heartbeat("recv_text", chat_id)
 
             try:
                 loop = asyncio.get_running_loop()
@@ -207,6 +278,7 @@ class FeishuWSBridge:
                 asyncio.run(self._handle_text_serialized(chat_id, content))
         except Exception as exc:
             _logger.exception("event_handler error: %s", exc)
+            _write_bridge_heartbeat("event_handler_error")
 
     def start(self) -> None:
         if not FEISHU_AVAILABLE:
@@ -232,6 +304,7 @@ class FeishuWSBridge:
             log_level=lark.LogLevel.INFO,
         )
         _logger.info("websocket client started")
+        _write_bridge_heartbeat("started")
         self._ws_client.start()
 
 

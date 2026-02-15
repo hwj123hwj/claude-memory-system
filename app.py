@@ -5,6 +5,7 @@ import json
 import shlex
 from contextlib import suppress
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +46,8 @@ except Exception:  # pragma: no cover
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = WORKSPACE_ROOT / "static"
 LOG_DIR = WORKSPACE_ROOT / "logs"
+BRIDGE_HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
+BRIDGE_HEARTBEAT_STALE_SECONDS = 180
 RUNTIME_CONFIG = load_runtime_config(WORKSPACE_ROOT / ".env")
 
 ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Glob", "Grep", "LS"]
@@ -423,9 +426,53 @@ async def build_memory_context_async(root: Path, max_entries: int) -> str:
     return await asyncio.to_thread(build_memory_context, root, max_entries)
 
 
+def _read_bridge_health() -> dict[str, Any]:
+    if not BRIDGE_HEARTBEAT_FILE.exists():
+        return {"status": "unknown", "detail": "heartbeat_missing"}
+
+    try:
+        data = json.loads(BRIDGE_HEARTBEAT_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"status": "unknown", "detail": "heartbeat_unreadable"}
+
+    ts_raw = data.get("ts")
+    if not isinstance(ts_raw, str):
+        return {"status": "unknown", "detail": "heartbeat_invalid_ts"}
+
+    try:
+        ts = datetime.fromisoformat(ts_raw)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return {"status": "unknown", "detail": "heartbeat_invalid_ts"}
+
+    now = datetime.now(timezone.utc)
+    age_seconds = max(0, int((now - ts).total_seconds()))
+    status = "ok" if age_seconds <= BRIDGE_HEARTBEAT_STALE_SECONDS else "stale"
+    return {
+        "status": status,
+        "age_seconds": age_seconds,
+        "last_heartbeat": ts.isoformat(),
+        "event": data.get("event", ""),
+        "pid": data.get("pid"),
+    }
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/healthz")
+async def healthz() -> dict[str, Any]:
+    bridge = _read_bridge_health()
+    overall_status = "degraded" if bridge.get("status") == "stale" else "ok"
+    return {
+        "status": overall_status,
+        "backend": "ok",
+        "bridge": bridge,
+        "time": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.post("/api/chat", response_model=ChatResponse)
