@@ -1,0 +1,19 @@
+meta:
+  title: persona
+  type: connections
+  tags: [connections, persona]
+  source: template
+  updated_at: 2026-02-17T00:00:00
+  confidence: medium
+
+profile:
+  name: ""
+  background: ""
+  communication_style: ""
+
+preferences:
+  likes: []
+  dislikes: []
+  triggers: []
+
+notes: []
