@@ -1,9 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
+import json
 import shlex
 from contextlib import suppress
 from contextvars import ContextVar
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +20,11 @@ from conversation_session import resolve_session_id
 from memory_context import build_memory_context
 from memory_index import write_memory_index
 from memory_stage1 import create_inbox_note, ensure_memory_layout
-from prompt_builder import build_effective_prompt
+from prompt_builder import (
+    build_effective_prompt,
+    has_explicit_new_file_intent,
+    has_explicit_write_intent,
+)
 from runtime_config import load_runtime_config
 from stale_client_cleanup import schedule_stale_client_cleanup
 
@@ -44,9 +50,12 @@ except Exception:  # pragma: no cover
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = WORKSPACE_ROOT / "static"
 LOG_DIR = WORKSPACE_ROOT / "logs"
+BRIDGE_HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
+BRIDGE_HEARTBEAT_STALE_SECONDS = 180
 RUNTIME_CONFIG = load_runtime_config(WORKSPACE_ROOT / ".env")
 
 ALLOWED_TOOLS = ["Read", "Write", "Edit", "MultiEdit", "Glob", "Grep", "LS"]
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 
 SYSTEM_PROMPT = (
     "You are a file assistant. You can only read or write files inside the current workspace. "
@@ -58,6 +67,8 @@ app = FastAPI(title="Claude Code Web Agent")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 CURRENT_LOGGER: ContextVar[SessionLogger | None] = ContextVar("CURRENT_LOGGER", default=None)
+WRITE_TOOLS_ALLOWED: ContextVar[bool] = ContextVar("WRITE_TOOLS_ALLOWED", default=False)
+NEW_FILE_ALLOWED: ContextVar[bool] = ContextVar("NEW_FILE_ALLOWED", default=False)
 CLIENT: ClaudeSDKClient | None = None
 ACTIVE_CONVERSATION_ID: str | None = None
 STALE_CLIENTS: list[ClaudeSDKClient] = []
@@ -204,6 +215,129 @@ def validate_bash_command(command: str, root: Path) -> tuple[bool, str]:
     return True, "ok"
 
 
+def should_allow_write_tools(user_prompt: str) -> bool:
+    return has_explicit_write_intent(user_prompt)
+
+
+def should_allow_new_file_creation(user_prompt: str) -> bool:
+    return has_explicit_new_file_intent(user_prompt)
+
+
+def _resolve_tool_path(raw_path: str, root: Path) -> Path:
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (root / candidate).resolve()
+
+
+def _is_memory_path(path: Path, root: Path) -> bool:
+    memory_root = (root / "memory").resolve()
+    path = path.resolve()
+    return path == memory_root or memory_root in path.parents
+
+
+def _is_inbox_path(path: Path, root: Path) -> bool:
+    inbox_root = (root / "memory" / "00_Inbox").resolve()
+    path = path.resolve()
+    return path == inbox_root or inbox_root in path.parents
+
+
+def _is_plan_like_file(path: Path) -> bool:
+    name = path.name.lower()
+    plan_tokens = (
+        "plan",
+        "roadmap",
+        "itinerary",
+        "travel",
+        "trip",
+        "learning",
+        "study",
+        "计划",
+        "路线",
+        "学习",
+    )
+    return any(token in name for token in plan_tokens)
+
+
+def _find_similar_plan_files(target: Path, root: Path) -> list[Path]:
+    memory_root = (root / "memory").resolve()
+    if not memory_root.exists():
+        return []
+    matches: list[Path] = []
+    stem_tokens = [x for x in target.stem.lower().replace("-", "_").split("_") if x]
+    for candidate in memory_root.rglob("*.md"):
+        if candidate.resolve() == target.resolve():
+            continue
+        c_name = candidate.name.lower()
+        if not _is_plan_like_file(candidate):
+            continue
+        if any(token and token in c_name for token in stem_tokens):
+            matches.append(candidate)
+    return matches
+
+
+def _is_growth_detail_plan_file(path: Path, root: Path) -> bool:
+    growth_root = (root / "memory" / "10_Growth").resolve()
+    path = path.resolve()
+    if not (path == growth_root or growth_root in path.parents):
+        return False
+    if path.name.lower() == "roadmap_2026.md":
+        return False
+    return _is_plan_like_file(path)
+
+
+def _has_roadmap_backlink(content: str) -> bool:
+    normalized = content.replace("\\", "/").lower()
+    return "memory/10_growth/roadmap_2026.md" in normalized
+
+
+def validate_memory_write_target(
+    *,
+    tool_name: str,
+    payload: dict[str, Any],
+    root: Path,
+    allow_new_file: bool,
+) -> tuple[bool, str]:
+    if tool_name != "Write":
+        return True, "ok"
+    raw_path = payload.get("file_path") or payload.get("path")
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return True, "ok"
+    target = _resolve_tool_path(raw_path, root)
+    if not _is_memory_path(target, root):
+        return True, "ok"
+    if target.exists():
+        return True, "ok"
+    if _is_inbox_path(target, root):
+        return True, "ok"
+    if not _is_plan_like_file(target):
+        return True, "ok"
+
+    if not allow_new_file:
+        return (
+            False,
+            "New plan-like memory file is blocked by default. "
+            "Update existing file first, or explicitly ask to create a new file.",
+        )
+    similar_files = _find_similar_plan_files(target, root)
+    if similar_files:
+        return (
+            False,
+            "Found similar plan files: "
+            + ", ".join(str(x.relative_to(root)) for x in similar_files[:3])
+            + ". Please update existing file or confirm creating a separate file.",
+        )
+    content = payload.get("content")
+    if _is_growth_detail_plan_file(target, root):
+        if not isinstance(content, str) or not _has_roadmap_backlink(content):
+            return (
+                False,
+                "Growth detail plan must include backlink to "
+                "`memory/10_Growth/roadmap_2026.md`.",
+            )
+    return True, "ok"
+
+
 async def can_use_tool(
     tool_name: str,
     input_data: dict[str, Any],
@@ -215,6 +349,29 @@ async def can_use_tool(
 
     if logger:
         logger.log_event("permission_check", {"tool_name": tool_name, "input": payload})
+
+    if tool_name in WRITE_TOOLS and not WRITE_TOOLS_ALLOWED.get():
+        reason = (
+            "Write/Edit/MultiEdit is blocked for this turn. "
+            "Ask user to explicitly confirm save/create/update file action first."
+        )
+        if logger:
+            logger.log_event("permission_deny", {"tool_name": tool_name, "reason": reason})
+        return PermissionResultDeny(message=reason, interrupt=True)
+
+    ok_write_target, reason_write_target = validate_memory_write_target(
+        tool_name=tool_name,
+        payload=payload,
+        root=WORKSPACE_ROOT,
+        allow_new_file=NEW_FILE_ALLOWED.get(),
+    )
+    if not ok_write_target:
+        if logger:
+            logger.log_event(
+                "permission_deny",
+                {"tool_name": tool_name, "reason": reason_write_target},
+            )
+        return PermissionResultDeny(message=reason_write_target, interrupt=True)
 
     if tool_name == "Bash":
         command = payload.get("command", "")
@@ -312,6 +469,8 @@ async def on_startup() -> None:
 
 async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
     effective_prompt = build_effective_prompt(prompt)
+    allow_write_tools = should_allow_write_tools(prompt)
+    allow_new_file = should_allow_new_file_creation(prompt)
     memory_ctx = await build_memory_context_async(
         WORKSPACE_ROOT,
         RUNTIME_CONFIG.memory_index_max_entries,
@@ -329,19 +488,26 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
             "effective_prompt": effective_prompt,
             "cwd": str(WORKSPACE_ROOT),
             "allowed_tools": ALLOWED_TOOLS,
+            "write_tools_allowed": allow_write_tools,
+            "new_file_allowed": allow_new_file,
             "conversation_id": conversation_id,
             "force_new_client": force_new_client,
         },
     )
 
     token = CURRENT_LOGGER.set(logger)
+    write_token = WRITE_TOOLS_ALLOWED.set(allow_write_tools)
+    new_file_token = NEW_FILE_ALLOWED.set(allow_new_file)
     chunks: list[str] = []
     tool_errors: list[str] = []
     interrupted = False
     result_is_error = False
     result_subtype: str | None = None
 
-    try:
+    async def _query_and_collect() -> None:
+        nonlocal interrupted
+        nonlocal result_is_error
+        nonlocal result_subtype
         client = await get_client(force_new=force_new_client)
         async with CLIENT_QUERY_LOCK:
             await client.query(effective_prompt)
@@ -380,10 +546,29 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
                 if ResultMessage is not None and isinstance(message, ResultMessage):
                     break
 
+    try:
+        await asyncio.wait_for(
+            _query_and_collect(),
+            timeout=RUNTIME_CONFIG.agent_run_timeout_seconds,
+        )
+    except asyncio.TimeoutError:
+        logger.log_event(
+            "timeout",
+            {"timeout_seconds": RUNTIME_CONFIG.agent_run_timeout_seconds},
+        )
+        return (
+            f"执行超时（{RUNTIME_CONFIG.agent_run_timeout_seconds}s），请重试。日志文件：{logger.path}",
+            logger.path,
+        )
+    except asyncio.CancelledError as exc:
+        logger.log_event("cancelled", {"error": repr(exc)})
+        raise
     except Exception as exc:
         logger.log_event("error", {"error": repr(exc)})
         return f"调用 Claude Code 失败：{exc}\n日志文件：{logger.path}", logger.path
     finally:
+        NEW_FILE_ALLOWED.reset(new_file_token)
+        WRITE_TOOLS_ALLOWED.reset(write_token)
         CURRENT_LOGGER.reset(token)
 
     reply = build_reply_text(
@@ -402,9 +587,53 @@ async def build_memory_context_async(root: Path, max_entries: int) -> str:
     return await asyncio.to_thread(build_memory_context, root, max_entries)
 
 
+def _read_bridge_health() -> dict[str, Any]:
+    if not BRIDGE_HEARTBEAT_FILE.exists():
+        return {"status": "unknown", "detail": "heartbeat_missing"}
+
+    try:
+        data = json.loads(BRIDGE_HEARTBEAT_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {"status": "unknown", "detail": "heartbeat_unreadable"}
+
+    ts_raw = data.get("ts")
+    if not isinstance(ts_raw, str):
+        return {"status": "unknown", "detail": "heartbeat_invalid_ts"}
+
+    try:
+        ts = datetime.fromisoformat(ts_raw)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return {"status": "unknown", "detail": "heartbeat_invalid_ts"}
+
+    now = datetime.now(timezone.utc)
+    age_seconds = max(0, int((now - ts).total_seconds()))
+    status = "ok" if age_seconds <= BRIDGE_HEARTBEAT_STALE_SECONDS else "stale"
+    return {
+        "status": status,
+        "age_seconds": age_seconds,
+        "last_heartbeat": ts.isoformat(),
+        "event": data.get("event", ""),
+        "pid": data.get("pid"),
+    }
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+@app.get("/healthz")
+async def healthz() -> dict[str, Any]:
+    bridge = _read_bridge_health()
+    overall_status = "degraded" if bridge.get("status") == "stale" else "ok"
+    return {
+        "status": overall_status,
+        "backend": "ok",
+        "bridge": bridge,
+        "time": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.post("/api/chat", response_model=ChatResponse)

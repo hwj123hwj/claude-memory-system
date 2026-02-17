@@ -4,7 +4,7 @@ from app import validate_bash_command
 
 
 def test_allow_workspace_move_command() -> None:
-    root = Path("D:/develop/test").resolve()
+    root = Path("/workspace/test").resolve()
     ok, reason = validate_bash_command(
         'mv "memory/00_Inbox/a.md" "memory/10_Growth/a.md"',
         root,
@@ -14,9 +14,9 @@ def test_allow_workspace_move_command() -> None:
 
 
 def test_deny_command_with_outside_path() -> None:
-    root = Path("D:/develop/test").resolve()
+    root = Path("/workspace/test").resolve()
     ok, reason = validate_bash_command(
-        'rm "C:/Windows/system32/drivers/etc/hosts"',
+        'rm "/etc/hosts"',
         root,
     )
     assert ok is False
@@ -24,7 +24,7 @@ def test_deny_command_with_outside_path() -> None:
 
 
 def test_deny_unsafe_shell_syntax() -> None:
-    root = Path("D:/develop/test").resolve()
+    root = Path("/workspace/test").resolve()
     ok, reason = validate_bash_command(
         'rm "memory/00_Inbox/a.md" && echo done',
         root,

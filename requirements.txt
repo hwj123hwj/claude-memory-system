@@ -1,6 +1,3 @@
-fastapi>=0.116.0
-uvicorn>=0.35.0
-pydantic>=2.11.0
-claude-agent-sdk>=0.0.20
-pytest>=8.4.0
-
+# This file is kept for compatibility but not used
+# Please use pyproject.toml and uv for dependency management
+# Run: uv sync --dev

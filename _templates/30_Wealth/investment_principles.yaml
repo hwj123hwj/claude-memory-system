@@ -1,0 +1,17 @@
+meta:
+  title: investment_principles
+  type: wealth
+  tags: [wealth, principles, investing]
+  source: template
+  updated_at: 2026-02-17T00:00:00
+  confidence: medium
+
+principles:
+  - name: ""
+    description: ""
+    do:
+      - ""
+    dont:
+      - ""
+
+notes: []

@@ -10,6 +10,13 @@ class RuntimeConfig:
     max_turns: int = 30
     stale_client_delay_seconds: int = 20
     memory_index_max_entries: int = 50
+    agent_run_timeout_seconds: int = 180
+    feishu_app_id: str = ""
+    feishu_app_secret: str = ""
+    feishu_encrypt_key: str = ""
+    feishu_verification_token: str = ""
+    feishu_agent_timeout_seconds: int = 120
+    feishu_max_reply_chars: int = 1500
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -49,8 +56,40 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         "MEMORY_INDEX_MAX_ENTRIES",
         file_env.get("MEMORY_INDEX_MAX_ENTRIES"),
     )
+    agent_run_timeout_raw = os.getenv(
+        "AGENT_RUN_TIMEOUT_SECONDS",
+        file_env.get("AGENT_RUN_TIMEOUT_SECONDS"),
+    )
+    feishu_app_id = os.getenv("FEISHU_APP_ID", file_env.get("FEISHU_APP_ID", ""))
+    feishu_app_secret = os.getenv(
+        "FEISHU_APP_SECRET",
+        file_env.get("FEISHU_APP_SECRET", ""),
+    )
+    feishu_encrypt_key = os.getenv(
+        "FEISHU_ENCRYPT_KEY",
+        file_env.get("FEISHU_ENCRYPT_KEY", ""),
+    )
+    feishu_verification_token = os.getenv(
+        "FEISHU_VERIFICATION_TOKEN",
+        file_env.get("FEISHU_VERIFICATION_TOKEN", ""),
+    )
+    feishu_agent_timeout_raw = os.getenv(
+        "FEISHU_AGENT_TIMEOUT_SECONDS",
+        file_env.get("FEISHU_AGENT_TIMEOUT_SECONDS"),
+    )
+    feishu_max_reply_chars_raw = os.getenv(
+        "FEISHU_MAX_REPLY_CHARS",
+        file_env.get("FEISHU_MAX_REPLY_CHARS"),
+    )
     return RuntimeConfig(
         max_turns=_parse_positive_int(max_turns_raw, 30),
         stale_client_delay_seconds=_parse_positive_int(stale_delay_raw, 20),
         memory_index_max_entries=_parse_positive_int(memory_index_max_entries_raw, 50),
+        agent_run_timeout_seconds=_parse_positive_int(agent_run_timeout_raw, 180),
+        feishu_app_id=feishu_app_id,
+        feishu_app_secret=feishu_app_secret,
+        feishu_encrypt_key=feishu_encrypt_key,
+        feishu_verification_token=feishu_verification_token,
+        feishu_agent_timeout_seconds=_parse_positive_int(feishu_agent_timeout_raw, 120),
+        feishu_max_reply_chars=_parse_positive_int(feishu_max_reply_chars_raw, 1500),
     )

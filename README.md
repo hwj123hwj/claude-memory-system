@@ -18,11 +18,31 @@ This project provides a web chat UI that routes prompts to Claude Code SDK.
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
-uvicorn app:app --reload --port 8000
+uv sync --dev
+uv run uvicorn app:app --reload --port 8000
 ```
 
 Open: `http://127.0.0.1:8000`
+
+Health check:
+- `GET /healthz` returns backend status and Feishu bridge heartbeat status.
+
+## Feishu (Local, No Public URL)
+
+This project supports Feishu long-connection mode (websocket), which does not require exposing your local server to the public internet.
+
+```bash
+uv run python feishu_ws_bridge.py
+```
+
+Requirements:
+- Configure `FEISHU_APP_ID` and `FEISHU_APP_SECRET` in `.env`
+- Enable Feishu event delivery in long-connection mode for your app
+
+Note:
+- HTTP webhook mode has been removed from backend routes.
+- Feishu messages are handled only by `feishu_ws_bridge.py`.
+- Bridge heartbeat file: `logs/feishu_bridge_heartbeat.json`
 
 ## Example Prompt
 
@@ -33,5 +53,5 @@ Open: `http://127.0.0.1:8000`
 ## Test
 
 ```bash
-pytest -q tests
+uv run pytest
 ```

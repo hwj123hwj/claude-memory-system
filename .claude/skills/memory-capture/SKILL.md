@@ -25,4 +25,5 @@ Use `memory/` as the memory root.
 - Never write a new note directly into `10_Growth`, `20_Connections`, `30_Wealth`, or `40_ProductMind`.
 - Keep raw user wording in the body whenever possible.
 - If user gives no tags, use a minimal default tag list.
+- **Before creating a new note, check if similar content already exists in memory/ (search by title/tags/keywords). If found, ask user whether to update existing note or create new one.**
 

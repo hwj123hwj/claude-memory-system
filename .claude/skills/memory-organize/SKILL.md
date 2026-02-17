@@ -24,4 +24,6 @@ Use `memory/` as the memory root.
 - Keep `00_Inbox` as intake area; do not bypass it.
 - Preserve content and frontmatter during moves.
 - If uncertain, keep note in inbox and mark as `needs_review`.
+- **After successfully moving files, DELETE the original files from 00_Inbox to avoid duplication.**
+- **If target folder already has a similar note (same title/topic), ask user whether to merge or keep separate.**
 

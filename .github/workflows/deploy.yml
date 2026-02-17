@@ -3,25 +3,88 @@ name: Auto Deploy to Server
 on:
   push:
     branches:
-      - main
+      - v1
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script_stop: true
+          port: 22
+          debug: true
+          timeout: 30s
+          command_timeout: 15m
           script: |
+            set -e
+            set -x
+
+            date
+            echo "=== SSH OK ==="
+            whoami
+            hostname
+
+            # 确保项目目录存在
+            mkdir -p /root/claude-memory-system
             cd /root/claude-memory-system
+
+            # 如果目录是空的,初始化 git
+            if [ ! -d .git ]; then
+              echo "=== initializing git repo ==="
+              git clone git@github.com:hwj123hwj/claude-memory-system.git temp
+              mv temp/.git .
+              rm -rf temp
+              git reset --hard HEAD
+            fi
+
+            # 禁止 Git 交互提示
+            export GIT_TERMINAL_PROMPT=0
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null || true
+
+            echo "=== git remote ==="
+            git remote -v
+
+            echo "=== skipping service stop (manual restart required) ==="
+            echo "Note: Services will NOT be stopped automatically"
+            echo "Please restart manually after deployment if needed"
+
+            echo "=== updating code ==="
             git fetch origin
-            git reset --hard origin/main
-            git pull origin main
-            echo "Deployment completed at $(date)"
+            git reset --hard origin/v1
+            git rev-parse --short HEAD
+
+            echo "=== checking uv ==="
+            if ! command -v uv >/dev/null 2>&1; then
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.cargo/bin:$PATH"
+            fi
+            uv --version
+
+            echo "=== installing dependencies ==="
+            export UV_HTTP_TIMEOUT=60
+            uv sync --dev -v
+
+            echo "=== verifying ==="
+            uv run python -c "import sys; print(f'Python {sys.version}')"
+
+            echo "=== starting services ==="
+
+            # 创建日志目录
+            mkdir -p logs
+
+            # 启动 uvicorn
+            echo "Starting uvicorn..."
+            nohup uv run uvicorn app:app --host 0.0.0.0 --port 8000 > logs/uvicorn.log 2>&1 &
+            echo $! > logs/uvicorn.pid
+
+            echo "=== done ==="
+            echo "Deployment completed. Services started."

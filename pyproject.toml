@@ -1,0 +1,22 @@
+[project]
+name = "claude-code-web-agent"
+version = "0.1.0"
+description = "Workspace-restricted Claude Code web agent with memory index and Feishu bridge"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.116.0",
+    "uvicorn>=0.35.0",
+    "pydantic>=2.11.0",
+    "claude-agent-sdk>=0.0.20",
+    "lark-oapi>=1.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
