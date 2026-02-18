@@ -71,3 +71,31 @@ def create_inbox_note(
     path.write_text(f"{frontmatter}\n{content.strip()}\n", encoding="utf-8")
     write_memory_index(root)
     return path
+
+
+def create_bucket_note(
+    *,
+    root: Path,
+    bucket: str,
+    title: str,
+    content: str,
+    tags: list[str] | None = None,
+    source: str = "chat",
+    memory_type: str = "note",
+) -> Path:
+    memory_root = ensure_memory_layout(root)
+    if bucket not in MEMORY_BUCKETS:
+        raise ValueError(f"Unknown bucket: {bucket}")
+    folder = memory_root / bucket
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_name = f"{ts}-{uuid4().hex[:6]}-{title}.md"
+    path = folder / file_name
+    frontmatter = build_frontmatter(
+        title=title,
+        memory_type=memory_type,
+        tags=tags or [],
+        source=source,
+    )
+    path.write_text(f"{frontmatter}\n{content.strip()}\n", encoding="utf-8")
+    write_memory_index(root)
+    return path

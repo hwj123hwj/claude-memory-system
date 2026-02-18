@@ -3,6 +3,7 @@ from pathlib import Path
 from memory_stage1 import (
     MEMORY_BUCKETS,
     build_frontmatter,
+    create_bucket_note,
     create_inbox_note,
     ensure_memory_layout,
 )
@@ -50,3 +51,20 @@ def test_create_inbox_note_writes_file_under_00_inbox(tmp_path: Path) -> None:
     assert text.startswith("---\n")
     assert "today note" in text
     assert (root / "memory" / "_index.json").exists()
+
+
+def test_create_bucket_note_writes_file_under_target_bucket(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    ensure_memory_layout(root)
+    note = create_bucket_note(
+        root=root,
+        bucket="20_Connections",
+        title="contact_signal",
+        content="key relationship update",
+        tags=["chatlog", "contact"],
+        source="chatlog_webhook",
+    )
+    assert note.exists()
+    assert "memory/20_Connections" in note.as_posix()
+    text = note.read_text(encoding="utf-8")
+    assert "key relationship update" in text
