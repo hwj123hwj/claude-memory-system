@@ -758,7 +758,7 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         nonlocal result_subtype
         client = await get_client(force_new=force_new_client)
         async with CLIENT_QUERY_LOCK:
-            await client.query(effective_prompt)
+            await client.query(effective_prompt, session_id=conversation_id)
             async for message in client.receive_response():
                 logger.log_event("message", serialize_message(message))
 
