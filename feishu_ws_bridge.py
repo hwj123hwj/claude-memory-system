@@ -36,7 +36,6 @@ LOG_DIR = WORKSPACE_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
 CHATLOG_TARGETS_FILE = LOG_DIR / "chatlog_targets.json"
-CHAT_SESSION_STATE_FILE = LOG_DIR / "feishu_chat_sessions.json"
 
 _logger = logging.getLogger("feishu_ws_bridge")
 if not _logger.handlers:
@@ -84,55 +83,12 @@ def _normalize_outgoing_text(text: str) -> str:
     return _sanitize_text(text)
 
 
-def _load_chat_session_state() -> dict[str, int]:
-    if not CHAT_SESSION_STATE_FILE.exists():
-        return {}
-    try:
-        raw = json.loads(CHAT_SESSION_STATE_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-    if not isinstance(raw, dict):
-        return {}
-    out: dict[str, int] = {}
-    for k, v in raw.items():
-        if not isinstance(k, str):
-            continue
-        try:
-            out[k] = max(0, int(v))
-        except (TypeError, ValueError):
-            continue
-    return out
-
-
-def _save_chat_session_state(state: dict[str, int]) -> None:
-    CHAT_SESSION_STATE_FILE.write_text(
-        json.dumps(state, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-
 def _resolve_chat_conversation_id(chat_id: str) -> str:
-    state = _load_chat_session_state()
-    generation = int(state.get(chat_id, 0))
-    return f"feishu:{chat_id}:v{generation}"
-
-
-def _clear_chat_session(chat_id: str) -> str:
-    state = _load_chat_session_state()
-    old_generation = int(state.get(chat_id, 0))
-    state[chat_id] = old_generation + 1
-    _save_chat_session_state(state)
-    return f"feishu:{chat_id}:v{state[chat_id]}"
+    return f"feishu:{chat_id}"
 
 
 def handle_session_command(text: str, chat_id: str) -> str | None:
-    normalized = text.strip()
-    lowered = normalized.lower()
-
-    if lowered == "/clear":
-        new_id = _clear_chat_session(chat_id)
-        return f"会话已清空，后续将使用新会话：{new_id}"
-
+    _ = (text, chat_id)
     return None
 
 

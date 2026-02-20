@@ -716,18 +716,24 @@ async def _chatlog_backfill_loop() -> None:
 
 
 async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
+    stripped_prompt = prompt.strip()
+    is_slash_command = bool(stripped_prompt) and stripped_prompt.startswith("/") and ("\n" not in stripped_prompt)
     effective_prompt = build_effective_prompt(prompt)
     allow_write_tools = should_allow_write_tools(prompt)
     allow_new_file = should_allow_new_file_creation(prompt)
-    memory_ctx = await build_memory_context_async(
-        WORKSPACE_ROOT,
-        RUNTIME_CONFIG.memory_index_max_entries,
-    )
-    effective_prompt = (
-        f"{effective_prompt}\n\n"
-        "浠ヤ笅鏄凡浠庡伐浣滃尯璇诲彇鍒扮殑 memory 绱㈠紩涓婁笅鏂囷紝璇峰厛鍩轰簬绱㈠紩鍒ゆ柇鐩稿叧鏂囦欢锛屽啀鎸夐渶鐢?Read 宸ュ叿璇诲彇姝ｆ枃锛歕n"
-        f"{memory_ctx}"
-    )
+    if is_slash_command:
+        # Keep slash commands intact so Claude CLI can parse them as commands.
+        effective_prompt = stripped_prompt
+    else:
+        memory_ctx = await build_memory_context_async(
+            WORKSPACE_ROOT,
+            RUNTIME_CONFIG.memory_index_max_entries,
+        )
+        effective_prompt = (
+            f"{effective_prompt}\n\n"
+            "浠ヤ笅鏄凡浠庡伐浣滃尯璇诲彇鍒扮殑 memory 绱㈠紩涓婁笅鏂囷紝璇峰厛鍩轰簬绱㈠紩鍒ゆ柇鐩稿叧鏂囦欢锛屽啀鎸夐渶鐢?Read 宸ュ叿璇诲彇姝ｆ枃锛歕n"
+            f"{memory_ctx}"
+        )
     logger = SessionLogger(log_dir=LOG_DIR)
     logger.log_event(
         "request",
