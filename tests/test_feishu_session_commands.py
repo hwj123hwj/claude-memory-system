@@ -13,7 +13,6 @@ def _session_state_file(name: str) -> Path:
 
 def test_handle_text_async_routes_clear_command_without_running_agent(monkeypatch) -> None:
     sent: list[str] = []
-
     session_file = _session_state_file("test_feishu_sessions_clear.json")
     monkeypatch.setattr(bridge_mod, "CHAT_SESSION_STATE_FILE", session_file)
 
@@ -28,7 +27,7 @@ def test_handle_text_async_routes_clear_command_without_running_agent(monkeypatc
     asyncio.run(bridge._handle_text_async("oc_chat", "/clear"))
 
     assert sent
-    assert "会话已清空" in sent[-1]
+    assert "v1" in sent[-1]
     if session_file.exists():
         session_file.unlink()
 
@@ -36,7 +35,6 @@ def test_handle_text_async_routes_clear_command_without_running_agent(monkeypatc
 def test_clear_command_changes_follow_up_conversation_id(monkeypatch) -> None:
     calls: list[str] = []
     sent: list[str] = []
-
     session_file = _session_state_file("test_feishu_sessions_change.json")
     monkeypatch.setattr(bridge_mod, "CHAT_SESSION_STATE_FILE", session_file)
 
@@ -55,23 +53,25 @@ def test_clear_command_changes_follow_up_conversation_id(monkeypatch) -> None:
     asyncio.run(bridge._handle_text_async("oc_chat", "hello again"))
 
     assert calls == ["feishu:oc_chat:v0", "feishu:oc_chat:v1"]
-    assert any("会话已清空" in x for x in sent)
+    assert any("v1" in x for x in sent)
     if session_file.exists():
         session_file.unlink()
 
 
-def test_handle_text_async_routes_compact_command_without_running_agent(monkeypatch) -> None:
+def test_handle_text_async_routes_compact_command_to_agent(monkeypatch) -> None:
     sent: list[str] = []
+    calls: list[tuple[str, str, bool]] = []
 
-    async def should_not_run_agent(prompt: str, conversation_id: str, force_new_client: bool):  # type: ignore[no-untyped-def]
-        raise AssertionError("run_agent should not be called for /compact")
+    async def fake_run_agent(prompt: str, conversation_id: str, force_new_client: bool):  # type: ignore[no-untyped-def]
+        calls.append((prompt, conversation_id, force_new_client))
+        return "compacted", "logs/mock.jsonl"
 
-    monkeypatch.setattr(bridge_mod, "run_agent", should_not_run_agent)
+    monkeypatch.setattr(bridge_mod, "run_agent", fake_run_agent)
 
     bridge = bridge_mod.FeishuWSBridge(app_id="x", app_secret="y", agent_timeout_seconds=3)
     bridge._send_text = lambda chat_id, text: sent.append(text)  # type: ignore[method-assign]
 
     asyncio.run(bridge._handle_text_async("oc_chat", "/compact"))
 
-    assert sent
-    assert "/compact" in sent[-1]
+    assert calls == [("/compact", "feishu:oc_chat:v0", False)]
+    assert sent == ["compacted"]

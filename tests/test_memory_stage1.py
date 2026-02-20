@@ -18,6 +18,13 @@ def test_ensure_memory_layout_creates_buckets(tmp_path: Path) -> None:
         assert (root / "memory" / bucket).exists()
 
 
+def test_ensure_memory_layout_creates_templates_dir(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    ensure_memory_layout(root)
+    assert (root / "memory" / "_templates").exists()
+
+
 def test_build_frontmatter_has_required_keys() -> None:
     fm = build_frontmatter(
         title="test",

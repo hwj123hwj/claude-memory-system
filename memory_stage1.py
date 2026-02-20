@@ -13,6 +13,7 @@ MEMORY_BUCKETS = [
     "20_Connections",
     "30_Wealth",
     "40_ProductMind",
+    "_templates",
 ]
 
 

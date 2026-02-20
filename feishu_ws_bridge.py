@@ -133,9 +133,6 @@ def handle_session_command(text: str, chat_id: str) -> str | None:
         new_id = _clear_chat_session(chat_id)
         return f"会话已清空，后续将使用新会话：{new_id}"
 
-    if lowered.startswith("/compact"):
-        return "飞书桥接暂不支持 Claude CLI 内置 /compact。可用 /clear 重置当前会话。"
-
     return None
 
 
