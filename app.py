@@ -200,11 +200,15 @@ def build_reply_text(
     interrupted: bool,
     result_is_error: bool,
     result_subtype: str | None,
+    compact_applied: bool,
     log_path: Path,
 ) -> str:
     reply = "\n".join(x for x in chunks if x and x.strip()).strip()
     if reply:
         return reply
+
+    if compact_applied:
+        return f"上下文已压缩完成。日志文件：{log_path}"
 
     if tool_errors:
         return f"执行失败：{tool_errors[-1]}\n日志文件：{log_path}"
@@ -755,11 +759,13 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     chunks: list[str] = []
     tool_errors: list[str] = []
     interrupted = False
+    compact_applied = False
     result_is_error = False
     result_subtype: str | None = None
 
     async def _query_and_collect() -> None:
         nonlocal interrupted
+        nonlocal compact_applied
         nonlocal result_is_error
         nonlocal result_subtype
         client = await get_client(force_new=force_new_client)
@@ -794,6 +800,8 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
 
                 if hasattr(message, "subtype") and isinstance(getattr(message, "subtype"), str):
                     result_subtype = getattr(message, "subtype")
+                    if result_subtype == "compact_boundary":
+                        compact_applied = True
                 if hasattr(message, "is_error") and isinstance(getattr(message, "is_error"), bool):
                     result_is_error = bool(getattr(message, "is_error"))
 
@@ -831,6 +839,7 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         interrupted=interrupted,
         result_is_error=result_is_error,
         result_subtype=result_subtype,
+        compact_applied=compact_applied,
         log_path=logger.path,
     )
     logger.log_event("response", {"reply": reply})

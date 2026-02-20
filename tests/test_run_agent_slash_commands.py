@@ -17,6 +17,11 @@ class _CaptureClient:
             yield None
 
 
+class _CompactBoundaryMessage:
+    subtype = "compact_boundary"
+    is_error = False
+
+
 def test_run_agent_keeps_slash_command_raw_and_skips_memory_context(monkeypatch) -> None:
     client = _CaptureClient()
 
@@ -40,3 +45,31 @@ def test_run_agent_keeps_slash_command_raw_and_skips_memory_context(monkeypatch)
     asyncio.run(app.run_agent("/compact", "cid-compact", False))
     assert client.prompt == "/compact"
     assert client.session_id == "cid-compact"
+
+
+def test_run_agent_reports_compact_done_when_boundary_without_text(monkeypatch) -> None:
+    class _CompactClient(_CaptureClient):
+        async def receive_response(self):  # type: ignore[no-untyped-def]
+            yield _CompactBoundaryMessage()
+
+    client = _CompactClient()
+
+    async def should_not_build_memory_context(root, max_entries):  # type: ignore[no-untyped-def]
+        raise AssertionError("memory context should be skipped for slash commands")
+
+    async def fake_get_client(force_new: bool = False):  # type: ignore[no-untyped-def]
+        _ = force_new
+        return client
+
+    monkeypatch.setattr(app, "build_memory_context_async", should_not_build_memory_context)
+    monkeypatch.setattr(app, "get_client", fake_get_client)
+    monkeypatch.setattr(
+        app,
+        "RUNTIME_CONFIG",
+        replace(app.RUNTIME_CONFIG, agent_run_timeout_seconds=3),
+    )
+
+    import asyncio
+
+    reply, _ = asyncio.run(app.run_agent("/compact", "cid-compact", False))
+    assert "压缩完成" in reply

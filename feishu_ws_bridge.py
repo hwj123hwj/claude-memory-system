@@ -36,6 +36,7 @@ LOG_DIR = WORKSPACE_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
 CHATLOG_TARGETS_FILE = LOG_DIR / "chatlog_targets.json"
+CHAT_SESSION_STATE_FILE = LOG_DIR / "feishu_chat_sessions.json"
 
 _logger = logging.getLogger("feishu_ws_bridge")
 if not _logger.handlers:
@@ -83,12 +84,92 @@ def _normalize_outgoing_text(text: str) -> str:
     return _sanitize_text(text)
 
 
+def _latest_slash_commands_from_logs(max_files: int = 50) -> list[str]:
+    files = sorted(LOG_DIR.glob("chat-*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for path in files[:max_files]:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            continue
+        for raw in lines:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                row = json.loads(raw)
+            except Exception:
+                continue
+            if row.get("event") != "message" or row.get("type") != "SystemMessage":
+                continue
+            payload = row.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if payload.get("subtype") != "init":
+                continue
+            data = payload.get("data")
+            if not isinstance(data, dict):
+                continue
+            slash = data.get("slash_commands")
+            if isinstance(slash, list):
+                cleaned = [str(x).strip() for x in slash if str(x).strip()]
+                if cleaned:
+                    return cleaned
+    return []
+
+
 def _resolve_chat_conversation_id(chat_id: str) -> str:
-    return f"feishu:{chat_id}"
+    state = _load_chat_session_state()
+    generation = int(state.get(chat_id, 0))
+    return f"feishu:{chat_id}:v{generation}"
+
+
+def _load_chat_session_state() -> dict[str, int]:
+    if not CHAT_SESSION_STATE_FILE.exists():
+        return {}
+    try:
+        raw = json.loads(CHAT_SESSION_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, int] = {}
+    for k, v in raw.items():
+        if not isinstance(k, str):
+            continue
+        try:
+            out[k] = max(0, int(v))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _save_chat_session_state(state: dict[str, int]) -> None:
+    CHAT_SESSION_STATE_FILE.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _clear_chat_session(chat_id: str) -> str:
+    state = _load_chat_session_state()
+    current = int(state.get(chat_id, 0))
+    state[chat_id] = current + 1
+    _save_chat_session_state(state)
+    return f"feishu:{chat_id}:v{state[chat_id]}"
 
 
 def handle_session_command(text: str, chat_id: str) -> str | None:
-    _ = (text, chat_id)
+    normalized = text.strip().lower()
+    if normalized == "/status commands":
+        slash = _latest_slash_commands_from_logs()
+        if not slash:
+            return "未发现可用 slash_commands（尚未捕获 init 消息）。"
+        lines = ["当前可用 slash_commands："]
+        lines.extend([f"- /{x}" for x in slash])
+        return "\n".join(lines)
+    if normalized == "/clear":
+        next_conversation_id = _clear_chat_session(chat_id)
+        return f"会话已清空，后续将使用新会话：{next_conversation_id}"
     return None
 
 
