@@ -36,6 +36,7 @@ LOG_DIR = WORKSPACE_ROOT / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
 CHATLOG_TARGETS_FILE = LOG_DIR / "chatlog_targets.json"
+CHAT_SESSION_STATE_FILE = LOG_DIR / "feishu_chat_sessions.json"
 
 _logger = logging.getLogger("feishu_ws_bridge")
 if not _logger.handlers:
@@ -81,6 +82,61 @@ def _parse_text_content(raw: str) -> str:
 
 def _normalize_outgoing_text(text: str) -> str:
     return _sanitize_text(text)
+
+
+def _load_chat_session_state() -> dict[str, int]:
+    if not CHAT_SESSION_STATE_FILE.exists():
+        return {}
+    try:
+        raw = json.loads(CHAT_SESSION_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, int] = {}
+    for k, v in raw.items():
+        if not isinstance(k, str):
+            continue
+        try:
+            out[k] = max(0, int(v))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _save_chat_session_state(state: dict[str, int]) -> None:
+    CHAT_SESSION_STATE_FILE.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _resolve_chat_conversation_id(chat_id: str) -> str:
+    state = _load_chat_session_state()
+    generation = int(state.get(chat_id, 0))
+    return f"feishu:{chat_id}:v{generation}"
+
+
+def _clear_chat_session(chat_id: str) -> str:
+    state = _load_chat_session_state()
+    old_generation = int(state.get(chat_id, 0))
+    state[chat_id] = old_generation + 1
+    _save_chat_session_state(state)
+    return f"feishu:{chat_id}:v{state[chat_id]}"
+
+
+def handle_session_command(text: str, chat_id: str) -> str | None:
+    normalized = text.strip()
+    lowered = normalized.lower()
+
+    if lowered == "/clear":
+        new_id = _clear_chat_session(chat_id)
+        return f"会话已清空，后续将使用新会话：{new_id}"
+
+    if lowered.startswith("/compact"):
+        return "飞书桥接暂不支持 Claude CLI 内置 /compact。可用 /clear 重置当前会话。"
+
+    return None
 
 
 def _parse_kv_args(parts: list[str]) -> dict[str, str]:
@@ -414,7 +470,7 @@ async def handle_reply_suggest_command(
         reply_style_profile,
         output_mode,
     )
-    conversation_id = f"feishu:{chat_id}"
+    conversation_id = _resolve_chat_conversation_id(chat_id)
     reply, _ = await asyncio.wait_for(
         run_agent(prompt, conversation_id, False),
         timeout=agent_timeout_seconds,
@@ -671,6 +727,10 @@ class FeishuWSBridge:
 
     async def _handle_text_async(self, chat_id: str, text: str) -> None:
         try:
+            session_reply = handle_session_command(text, chat_id)
+            if session_reply is not None:
+                self._send_text(chat_id, session_reply)
+                return
             command_reply = handle_memory_group_command(text)
             if command_reply is not None:
                 self._send_text(chat_id, command_reply)
@@ -683,7 +743,7 @@ class FeishuWSBridge:
             if reply_suggest is not None:
                 self._send_text(chat_id, reply_suggest)
                 return
-            conversation_id = f"feishu:{chat_id}"
+            conversation_id = _resolve_chat_conversation_id(chat_id)
             try:
                 reply, log_path = await asyncio.wait_for(
                     run_agent(text, conversation_id, False),
