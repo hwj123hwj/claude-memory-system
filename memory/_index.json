@@ -1,8 +1,1073 @@
 {
-  "generated_at": "2026-02-17T09:20:45.761029+00:00",
+  "generated_at": "2026-02-19T16:12:00.714123+00:00",
   "memory_root": "D:\\develop\\claude-memory-system\\memory",
-  "file_count": 14,
+  "file_count": 96,
   "files": [
+    {
+      "path": "memory/00_Inbox/20260218-235542-陈晓葳_高中同学_北京约饭.md",
+      "title": "陈晓葳_高中同学_北京约饭",
+      "type": "contact",
+      "tags": [
+        "'contact'",
+        "'高中同学'",
+        "'北京'",
+        "'约饭'"
+      ],
+      "updated_at": "",
+      "mtime": "2026-02-18T15:43:36.913986+00:00",
+      "size": 1185,
+      "summary": "# 陈晓葳 ## 关系背景 - **关系类型**: 高中同学 - **当前状态**: 都在北京读书,大学快毕业 - **联系历史**: 之前一直没有联系,2026-02-17因新年祝福恢复联系 ## 最近互动 **时间**: 2026-02-17 18:36 **对话内容**: - 我: 晓葳 新年快乐[庆 [已截断]"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-234112-c38707-chatlog_batch_backfill.md",
+      "title": "chatlog_batch_backfill",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "backfill"
+      ],
+      "updated_at": "2026-02-18T23:41:12",
+      "mtime": "2026-02-18T15:41:12.672332+00:00",
+      "size": 321,
+      "summary": "talker: batch_backfill mode: backfill accepted_count: 1 sample_messages: - [2026-02-18T15:41:12.618737+00:00] system: accepted=9, errors=0, scanned=3"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-233112-76b4b7-chatlog_batch_backfill.md",
+      "title": "chatlog_batch_backfill",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "backfill"
+      ],
+      "updated_at": "2026-02-18T23:31:12",
+      "mtime": "2026-02-18T15:31:12.305640+00:00",
+      "size": 321,
+      "summary": "talker: batch_backfill mode: backfill accepted_count: 1 sample_messages: - [2026-02-18T15:31:12.199411+00:00] system: accepted=9, errors=0, scanned=3"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223921-113c96-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:21",
+      "mtime": "2026-02-18T14:39:21.121588+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223921-5bbd7e-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:21",
+      "mtime": "2026-02-18T14:39:21.009165+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223920-4314b9-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:20",
+      "mtime": "2026-02-18T14:39:20.859626+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223920-d64951-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:20",
+      "mtime": "2026-02-18T14:39:20.653227+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223920-9ebba0-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:20",
+      "mtime": "2026-02-18T14:39:20.404459+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223920-f67c43-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:39:20",
+      "mtime": "2026-02-18T14:39:20.265662+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223113-a5754b-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:13",
+      "mtime": "2026-02-18T14:31:13.437964+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223113-1e738f-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:13",
+      "mtime": "2026-02-18T14:31:13.305956+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223113-9f25c6-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:13",
+      "mtime": "2026-02-18T14:31:13.175802+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223112-1abf35-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:12",
+      "mtime": "2026-02-18T14:31:12.984602+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223112-df8f96-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:12",
+      "mtime": "2026-02-18T14:31:12.781827+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-223112-6c53fc-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:31:12",
+      "mtime": "2026-02-18T14:31:12.660562+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-c1d22b-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.819870+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-685333-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.726388+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-f247b9-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.623401+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-5f0190-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.477401+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-f409e1-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.310389+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222750-731ee0-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:27:50",
+      "mtime": "2026-02-18T14:27:50.198167+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222527-b1d19b-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:27",
+      "mtime": "2026-02-18T14:25:27.601250+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222527-c5fb7b-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:27",
+      "mtime": "2026-02-18T14:25:27.505764+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222527-d65962-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:27",
+      "mtime": "2026-02-18T14:25:27.396287+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222527-180272-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:27",
+      "mtime": "2026-02-18T14:25:27.196377+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222526-96af47-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:26",
+      "mtime": "2026-02-18T14:25:26.979368+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222526-abc513-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:25:26",
+      "mtime": "2026-02-18T14:25:26.881291+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222447-2e78ee-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:47",
+      "mtime": "2026-02-18T14:24:47.103799+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222446-15bcf0-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:46",
+      "mtime": "2026-02-18T14:24:46.991363+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222446-f2e1fb-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:46",
+      "mtime": "2026-02-18T14:24:46.887330+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222446-c52771-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:46",
+      "mtime": "2026-02-18T14:24:46.725711+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222446-56cbdb-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:46",
+      "mtime": "2026-02-18T14:24:46.476714+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222446-880257-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:46",
+      "mtime": "2026-02-18T14:24:46.329266+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222425-7d1d21-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:25",
+      "mtime": "2026-02-18T14:24:25.061396+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222424-667379-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:24",
+      "mtime": "2026-02-18T14:24:24.963818+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222424-7caeb6-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:24",
+      "mtime": "2026-02-18T14:24:24.860040+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222424-ee0e8f-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:24",
+      "mtime": "2026-02-18T14:24:24.684111+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222424-7bceb4-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:24",
+      "mtime": "2026-02-18T14:24:24.451258+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222424-f6990a-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:24:24",
+      "mtime": "2026-02-18T14:24:24.308094+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-aee86f-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.924857+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-680a09-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.830339+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-87eee2-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.729905+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-a71b1b-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.557337+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-3baf0a-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.322247+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222340-5bd002-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:40",
+      "mtime": "2026-02-18T14:23:40.195557+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222325-fff71e-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:25",
+      "mtime": "2026-02-18T14:23:25.472556+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222325-5bf4bb-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:25",
+      "mtime": "2026-02-18T14:23:25.377759+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222325-051f86-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:25",
+      "mtime": "2026-02-18T14:23:25.251090+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222325-91643d-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:25",
+      "mtime": "2026-02-18T14:23:25.106810+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222324-d6c9f1-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:24",
+      "mtime": "2026-02-18T14:23:24.715828+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222324-54617b-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:23:24",
+      "mtime": "2026-02-18T14:23:24.602629+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222134-2de89d-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:34",
+      "mtime": "2026-02-18T14:21:34.730637+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:24:00+08:00] A: deadline soon"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222134-1aa4c8-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:34",
+      "mtime": "2026-02-18T14:21:34.597373+00:00",
+      "size": 306,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:23:00+08:00] VIP: routine"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222134-dcbbd7-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:34",
+      "mtime": "2026-02-18T14:21:34.445681+00:00",
+      "size": 314,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:22:00+08:00] A: deadline tomorrow"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222134-a3e852-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:34",
+      "mtime": "2026-02-18T14:21:34.312650+00:00",
+      "size": 302,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:21:00+08:00] A: hello"
+    },
+    {
+      "path": "memory/10_Growth/20260218-222133-e2b0d4-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:33",
+      "mtime": "2026-02-18T14:21:33.812064+00:00",
+      "size": 310,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:20:00+08:00] A: normal update"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222133-1bb268-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:33",
+      "mtime": "2026-02-18T14:21:33.710099+00:00",
+      "size": 320,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] VIP: I want to add context"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222133-793fcf-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:33",
+      "mtime": "2026-02-18T14:21:33.504670+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-222133-3dc386-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T22:21:33",
+      "mtime": "2026-02-18T14:21:33.403607+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214301-e9a612-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:43:01",
+      "mtime": "2026-02-18T13:43:01.643499+00:00",
+      "size": 329,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] 郝睿: 这个结论我补充一下"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214301-c3b7b1-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:43:01",
+      "mtime": "2026-02-18T13:43:01.425188+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214301-c003cd-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:43:01",
+      "mtime": "2026-02-18T13:43:01.341819+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214237-2521d2-chatlog_48651409135_chatroom.md",
+      "title": "chatlog_48651409135_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:42:37",
+      "mtime": "2026-02-18T13:42:37.435224+00:00",
+      "size": 329,
+      "summary": "talker: 48651409135@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:11:00+08:00] 郝睿: 这个结论我补充一下"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214237-6fde41-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:42:37",
+      "mtime": "2026-02-18T13:42:37.239288+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-214237-2b7206-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:42:37",
+      "mtime": "2026-02-18T13:42:37.141950+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-213158-6b28e5-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:31:58",
+      "mtime": "2026-02-18T13:31:58.506884+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-213158-4b138d-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:31:58",
+      "mtime": "2026-02-18T13:31:58.449628+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/20_Connections/郝睿/profile.md",
+      "title": "profile",
+      "type": "",
+      "tags": [],
+      "updated_at": "",
+      "mtime": "2026-02-18T13:27:07.834666+00:00",
+      "size": 375,
+      "summary": "# 郝睿 - 联系人档案 ## 基本信息 - **姓名**: 郝睿 - **创建日期**: 2026-02-18 - **关系类型**: 待补充 - **联系方式**: 待补充 - **最后联系**: 待补充 ## 标签 待补充标签（如：同事、朋友、客户等） ## 备注 联系人档案已创建，请补充详细信息。 [已截断]"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211552-c11315-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:15:52",
+      "mtime": "2026-02-18T13:15:52.669178+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211552-64f143-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:15:52",
+      "mtime": "2026-02-18T13:15:52.569656+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211400-f5d7ea-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:14:00",
+      "mtime": "2026-02-18T13:14:00.187996+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211400-79942e-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:14:00",
+      "mtime": "2026-02-18T13:14:00.073903+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211037-f25831-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:10:37",
+      "mtime": "2026-02-18T13:10:37.780879+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211037-6a2cc4-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:10:37",
+      "mtime": "2026-02-18T13:10:37.564716+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211004-d08673-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:10:04",
+      "mtime": "2026-02-18T13:10:04.923856+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/40_ProductMind/20260218-211004-3579c9-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "chatlog",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:10:04",
+      "mtime": "2026-02-18T13:10:04.836578+00:00",
+      "size": 291,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210848-54cba6-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:48",
+      "mtime": "2026-02-18T13:08:48.560478+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210848-f0d637-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:48",
+      "mtime": "2026-02-18T13:08:48.500952+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210824-7db2cf-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:24",
+      "mtime": "2026-02-18T13:08:24.645345+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210824-2e3b46-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:24",
+      "mtime": "2026-02-18T13:08:24.573833+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210809-4a5ac0-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:09",
+      "mtime": "2026-02-18T13:08:09.457772+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
+    {
+      "path": "memory/00_Inbox/20260218-210809-2b7051-chatlog_123456_chatroom.md",
+      "title": "chatlog_123456_chatroom",
+      "type": "inbox",
+      "tags": [
+        "chatlog",
+        "group_digest"
+      ],
+      "updated_at": "2026-02-18T21:08:09",
+      "mtime": "2026-02-18T13:08:09.385290+00:00",
+      "size": 289,
+      "summary": "talker: 123456@chatroom mode: group_digest accepted_count: 1 sample_messages: - [2026-02-18T10:00:00+08:00] : hello"
+    },
     {
       "path": "memory/40_ProductMind/observations.md",
       "title": "observations",

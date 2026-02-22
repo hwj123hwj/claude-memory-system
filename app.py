@@ -1,6 +1,8 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import shlex
 from contextlib import suppress
@@ -9,17 +11,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agent_security import is_tool_input_within_root
 from chat_logging import SessionLogger, serialize_message
+from chatlog_backfill import fetch_chatlog_messages, run_backfill_once
+from chatlog_state_store import ChatlogStateStore
+from chatlog_targets import ChatlogTargetStore
 from conversation_session import resolve_session_id
 from memory_context import build_memory_context
 from memory_index import write_memory_index
-from memory_stage1 import create_inbox_note, ensure_memory_layout
+from memory_stage1 import create_bucket_note, create_inbox_note, ensure_memory_layout
 from prompt_builder import (
     build_effective_prompt,
     has_explicit_new_file_intent,
@@ -50,6 +55,8 @@ except Exception:  # pragma: no cover
 WORKSPACE_ROOT = Path(__file__).resolve().parent
 STATIC_DIR = WORKSPACE_ROOT / "static"
 LOG_DIR = WORKSPACE_ROOT / "logs"
+CHATLOG_STATE_DB = LOG_DIR / "chatlog_state.db"
+CHATLOG_TARGETS_FILE = LOG_DIR / "chatlog_targets.json"
 BRIDGE_HEARTBEAT_FILE = LOG_DIR / "feishu_bridge_heartbeat.json"
 BRIDGE_HEARTBEAT_STALE_SECONDS = 180
 RUNTIME_CONFIG = load_runtime_config(WORKSPACE_ROOT / ".env")
@@ -73,6 +80,16 @@ CLIENT: ClaudeSDKClient | None = None
 ACTIVE_CONVERSATION_ID: str | None = None
 STALE_CLIENTS: list[ClaudeSDKClient] = []
 STALE_CLEANUP_TASK: asyncio.Task | None = None
+CHATLOG_BACKFILL_TASK: asyncio.Task | None = None
+CHATLOG_RUNTIME: dict[str, Any] = {
+    "last_webhook_at": None,
+    "webhook_accepted_total": 0,
+    "webhook_deduped_total": 0,
+    "last_backfill_at": None,
+    "last_backfill_report": None,
+    "backfill_errors_total": 0,
+    "backfill_consecutive_error_runs": 0,
+}
 CLIENT_INIT_LOCK = asyncio.Lock()
 CLIENT_QUERY_LOCK = asyncio.Lock()
 
@@ -106,6 +123,30 @@ class MemoryCaptureResponse(BaseModel):
 class MemoryReindexResponse(BaseModel):
     path: str
     message: str
+
+
+class ChatlogWebhookRequest(BaseModel):
+    talker: str = Field(min_length=1, max_length=200)
+    messages: list[dict[str, Any]] = Field(min_length=1)
+
+
+class ChatlogWebhookResponse(BaseModel):
+    ok: bool
+    talker: str
+    accepted: int
+    mode: str
+
+
+class ChatlogTargetUpsertRequest(BaseModel):
+    talker: str = Field(min_length=1, max_length=200)
+    enabled: bool = True
+    group_type: str = Field(default="info_gap", max_length=40)
+    importance: int = Field(default=3, ge=1, le=5)
+    default_memory_bucket: str = Field(default="40_ProductMind", max_length=40)
+    focus_topics: list[str] = Field(default_factory=list)
+    important_people: list[str] = Field(default_factory=list)
+    noise_tolerance: str = Field(default="medium", max_length=20)
+    capture_policy: str = Field(default="summary_only", max_length=30)
 
 
 SAFE_BASH_COMMANDS = {
@@ -159,11 +200,15 @@ def build_reply_text(
     interrupted: bool,
     result_is_error: bool,
     result_subtype: str | None,
+    compact_applied: bool,
     log_path: Path,
 ) -> str:
     reply = "\n".join(x for x in chunks if x and x.strip()).strip()
     if reply:
         return reply
+
+    if compact_applied:
+        return f"上下文已压缩完成。日志文件：{log_path}"
 
     if tool_errors:
         return f"执行失败：{tool_errors[-1]}\n日志文件：{log_path}"
@@ -171,7 +216,7 @@ def build_reply_text(
     if interrupted or result_is_error or result_subtype == "error_during_execution":
         return f"执行中断，未产生可显示文本输出。日志文件：{log_path}"
 
-    return f"已完成请求，但没有可显示的文本输出。日志文件：{log_path}"
+    return f"请求已完成，但没有可显示文本输出。日志文件：{log_path}"
 
 
 def _looks_like_path_token(token: str) -> bool:
@@ -181,6 +226,146 @@ def _looks_like_path_token(token: str) -> bool:
     if not token:
         return False
     return ("\\" in token) or ("/" in token) or ("." in Path(token).name)
+
+
+def _to_int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_idempotency_key(talker: str, message: dict[str, Any]) -> str:
+    seq = _to_int_or_none(message.get("seq"))
+    if seq is not None:
+        return f"{talker}:{seq}"
+    raw = (
+        f"{talker}|"
+        f"{message.get('sender', '')}|"
+        f"{message.get('time', '')}|"
+        f"{message.get('content', '')}"
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _safe_title_suffix(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() else "_" for ch in value).strip("_")
+    return cleaned[:40] if cleaned else "chatlog"
+
+
+def _persist_chatlog_note(*, talker: str, mode: str, messages: list[dict[str, Any]], source: str) -> None:
+    if not messages:
+        return
+    lines: list[str] = []
+    for item in messages[:5]:
+        ts = item.get("time", "")
+        sender = item.get("senderName") or item.get("sender") or ""
+        content = str(item.get("content", "")).strip().replace("\n", " ")
+        lines.append(f"- [{ts}] {sender}: {content[:120]}")
+    body = (
+        f"talker: {talker}\n"
+        f"mode: {mode}\n"
+        f"accepted_count: {len(messages)}\n\n"
+        "sample_messages:\n"
+        + ("\n".join(lines) if lines else "- (none)")
+    )
+    bucket = "00_Inbox"
+    if mode == "contact_realtime":
+        bucket = "20_Connections"
+    elif mode == "group_digest":
+        targets = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+        cfg = targets.get_target(talker) or {}
+        group_type = str(cfg.get("group_type", "info_gap"))
+        if group_type == "relationship":
+            bucket = "20_Connections"
+        elif group_type == "learning":
+            bucket = "10_Growth"
+        elif group_type == "notification":
+            bucket = "00_Inbox"
+        else:
+            bucket = str(cfg.get("default_memory_bucket", "40_ProductMind"))
+    create_bucket_note(
+        root=WORKSPACE_ROOT,
+        bucket=bucket,
+        content=body,
+        title=f"chatlog_{_safe_title_suffix(talker)}",
+        tags=["chatlog", mode],
+        source=source,
+        memory_type="chatlog",
+    )
+
+
+def _build_chatlog_health() -> dict[str, Any]:
+    target_store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+    accepted_total = int(CHATLOG_RUNTIME.get("webhook_accepted_total", 0))
+    deduped_total = int(CHATLOG_RUNTIME.get("webhook_deduped_total", 0))
+    total = accepted_total + deduped_total
+    dedup_ratio = (deduped_total / total) if total > 0 else 0.0
+    backfill_streak = int(CHATLOG_RUNTIME.get("backfill_consecutive_error_runs", 0))
+    signals = {
+        "backfill_error_alert": (
+            backfill_streak >= RUNTIME_CONFIG.chatlog_backfill_consecutive_error_threshold
+        ),
+        "webhook_dedup_alert": (
+            total >= RUNTIME_CONFIG.chatlog_webhook_dedup_min_total
+            and dedup_ratio >= RUNTIME_CONFIG.chatlog_webhook_dedup_ratio_threshold
+        ),
+        "backfill_consecutive_error_runs": backfill_streak,
+        "webhook_dedup_ratio": round(dedup_ratio, 4),
+    }
+    return {
+        "enabled": bool(RUNTIME_CONFIG.chatlog_enabled),
+        "base_url": RUNTIME_CONFIG.chatlog_base_url,
+        "monitored_talkers": list(RUNTIME_CONFIG.chatlog_monitored_talkers),
+        "configured_targets": target_store.list_targets(),
+        "state_db": str(CHATLOG_STATE_DB),
+        "targets_file": str(CHATLOG_TARGETS_FILE),
+        "signals": signals,
+        **CHATLOG_RUNTIME,
+    }
+
+
+def _is_notification_important(message: dict[str, Any]) -> bool:
+    content = str(message.get("content", "")).lower()
+    keywords = ("urgent", "important", "deadline", "meeting", "risk", "alert", "notice")
+    return any(k in content for k in keywords)
+
+
+def _hits_important_people(message: dict[str, Any], people: list[str]) -> bool:
+    if not people:
+        return False
+    sender_name = str(message.get("senderName", ""))
+    sender = str(message.get("sender", ""))
+    hay = f"{sender_name}|{sender}"
+    return any(p and p in hay for p in people)
+
+
+def _capture_policy(target: dict[str, Any]) -> str:
+    policy = str(target.get("capture_policy", "summary_only"))
+    if policy in {"summary_only", "key_events", "hybrid"}:
+        return policy
+    return "summary_only"
+
+
+def _should_accept_group_message(target: dict[str, Any] | None, message: dict[str, Any]) -> bool:
+    if target is None:
+        return True
+
+    group_type = str(target.get("group_type", "info_gap"))
+    if group_type == "notification":
+        return _is_notification_important(message)
+
+    policy = _capture_policy(target)
+    people_raw = target.get("important_people", [])
+    important_people = [str(x).strip() for x in people_raw if str(x).strip()] if isinstance(people_raw, list) else []
+
+    if policy == "summary_only":
+        return False
+    if policy == "key_events":
+        return _is_notification_important(message)
+    if _hits_important_people(message, important_people):
+        return True
+    return _is_notification_important(message)
 
 
 def validate_bash_command(command: str, root: Path) -> tuple[bool, str]:
@@ -443,6 +628,12 @@ async def get_client(force_new: bool = False) -> ClaudeSDKClient:
 async def on_shutdown() -> None:
     global CLIENT
     global STALE_CLEANUP_TASK
+    global CHATLOG_BACKFILL_TASK
+    if CHATLOG_BACKFILL_TASK is not None:
+        CHATLOG_BACKFILL_TASK.cancel()
+        with suppress(Exception):
+            await CHATLOG_BACKFILL_TASK
+        CHATLOG_BACKFILL_TASK = None
     if STALE_CLEANUP_TASK is not None:
         STALE_CLEANUP_TASK.cancel()
         with suppress(Exception):
@@ -464,22 +655,92 @@ async def on_shutdown() -> None:
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    global CHATLOG_BACKFILL_TASK
     ensure_memory_layout(WORKSPACE_ROOT)
+    if (
+        RUNTIME_CONFIG.chatlog_enabled
+        and RUNTIME_CONFIG.chatlog_base_url
+        and RUNTIME_CONFIG.chatlog_monitored_talkers
+    ):
+        CHATLOG_BACKFILL_TASK = asyncio.create_task(_chatlog_backfill_loop())
+
+
+async def _chatlog_backfill_loop() -> None:
+    while True:
+        store = ChatlogStateStore(CHATLOG_STATE_DB)
+        target_store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+        talkers = target_store.enabled_talkers()
+        if not talkers:
+            await asyncio.sleep(RUNTIME_CONFIG.chatlog_backfill_interval_seconds)
+            continue
+        report = await asyncio.to_thread(
+            run_backfill_once,
+            store=store,
+            talkers=talkers,
+            fetch_messages=lambda talker, from_date, to_date: fetch_chatlog_messages(
+                base_url=RUNTIME_CONFIG.chatlog_base_url,
+                talker=talker,
+                from_date=from_date,
+                to_date=to_date,
+            ),
+            now=datetime.now(timezone.utc),
+            bootstrap_days=RUNTIME_CONFIG.chatlog_backfill_bootstrap_days,
+            should_accept_message=lambda talker, message: (
+                _should_accept_group_message(target_store.get_target(talker), message)
+                if talker.endswith("@chatroom")
+                else True
+            ),
+        )
+        CHATLOG_RUNTIME["last_backfill_at"] = datetime.now(timezone.utc).isoformat()
+        CHATLOG_RUNTIME["last_backfill_report"] = report
+        CHATLOG_RUNTIME["backfill_errors_total"] = int(CHATLOG_RUNTIME["backfill_errors_total"]) + int(
+            report.get("errors", 0)
+        )
+        if int(report.get("errors", 0)) > 0:
+            CHATLOG_RUNTIME["backfill_consecutive_error_runs"] = int(
+                CHATLOG_RUNTIME.get("backfill_consecutive_error_runs", 0)
+            ) + 1
+        else:
+            CHATLOG_RUNTIME["backfill_consecutive_error_runs"] = 0
+        if int(report.get("accepted", 0)) > 0:
+            _persist_chatlog_note(
+                talker="batch_backfill",
+                mode="backfill",
+                messages=[
+                    {
+                        "time": CHATLOG_RUNTIME["last_backfill_at"],
+                        "sender": "system",
+                        "content": (
+                            f"accepted={report.get('accepted', 0)}, "
+                            f"errors={report.get('errors', 0)}, "
+                            f"scanned={report.get('scanned', 0)}"
+                        ),
+                    }
+                ],
+                source="chatlog_backfill",
+            )
+        await asyncio.sleep(RUNTIME_CONFIG.chatlog_backfill_interval_seconds)
 
 
 async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -> tuple[str, Path]:
+    stripped_prompt = prompt.strip()
+    is_slash_command = bool(stripped_prompt) and stripped_prompt.startswith("/") and ("\n" not in stripped_prompt)
     effective_prompt = build_effective_prompt(prompt)
     allow_write_tools = should_allow_write_tools(prompt)
     allow_new_file = should_allow_new_file_creation(prompt)
-    memory_ctx = await build_memory_context_async(
-        WORKSPACE_ROOT,
-        RUNTIME_CONFIG.memory_index_max_entries,
-    )
-    effective_prompt = (
-        f"{effective_prompt}\n\n"
-        "以下是已从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需用 Read 工具读取正文：\n"
-        f"{memory_ctx}"
-    )
+    if is_slash_command:
+        # Keep slash commands intact so Claude CLI can parse them as commands.
+        effective_prompt = stripped_prompt
+    else:
+        memory_ctx = await build_memory_context_async(
+            WORKSPACE_ROOT,
+            RUNTIME_CONFIG.memory_index_max_entries,
+        )
+        effective_prompt = (
+            f"{effective_prompt}\n\n"
+            "以下是从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需使用 Read 工具读取正文：\n"
+            f"{memory_ctx}"
+        )
     logger = SessionLogger(log_dir=LOG_DIR)
     logger.log_event(
         "request",
@@ -501,16 +762,18 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     chunks: list[str] = []
     tool_errors: list[str] = []
     interrupted = False
+    compact_applied = False
     result_is_error = False
     result_subtype: str | None = None
 
     async def _query_and_collect() -> None:
         nonlocal interrupted
+        nonlocal compact_applied
         nonlocal result_is_error
         nonlocal result_subtype
         client = await get_client(force_new=force_new_client)
         async with CLIENT_QUERY_LOCK:
-            await client.query(effective_prompt)
+            await client.query(effective_prompt, session_id=conversation_id)
             async for message in client.receive_response():
                 logger.log_event("message", serialize_message(message))
 
@@ -540,6 +803,8 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
 
                 if hasattr(message, "subtype") and isinstance(getattr(message, "subtype"), str):
                     result_subtype = getattr(message, "subtype")
+                    if result_subtype == "compact_boundary":
+                        compact_applied = True
                 if hasattr(message, "is_error") and isinstance(getattr(message, "is_error"), bool):
                     result_is_error = bool(getattr(message, "is_error"))
 
@@ -565,7 +830,7 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         raise
     except Exception as exc:
         logger.log_event("error", {"error": repr(exc)})
-        return f"调用 Claude Code 失败：{exc}\n日志文件：{logger.path}", logger.path
+        return f"Claude Code call failed: {exc}\nLog file: {logger.path}", logger.path
     finally:
         NEW_FILE_ALLOWED.reset(new_file_token)
         WRITE_TOOLS_ALLOWED.reset(write_token)
@@ -577,6 +842,7 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         interrupted=interrupted,
         result_is_error=result_is_error,
         result_subtype=result_subtype,
+        compact_applied=compact_applied,
         log_path=logger.path,
     )
     logger.log_event("response", {"reply": reply})
@@ -627,11 +893,20 @@ async def index() -> FileResponse:
 @app.get("/healthz")
 async def healthz() -> dict[str, Any]:
     bridge = _read_bridge_health()
+    chatlog = _build_chatlog_health()
     overall_status = "degraded" if bridge.get("status") == "stale" else "ok"
+    signals = chatlog.get("signals", {})
+    if isinstance(signals, dict):
+        if bool(signals.get("backfill_error_alert")) or bool(signals.get("webhook_dedup_alert")):
+            overall_status = "degraded"
+    last_report = chatlog.get("last_backfill_report")
+    if isinstance(last_report, dict) and int(last_report.get("errors", 0)) > 0:
+        overall_status = "degraded"
     return {
         "status": overall_status,
         "backend": "ok",
         "bridge": bridge,
+        "chatlog": chatlog,
         "time": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -669,7 +944,7 @@ async def memory_capture(payload: MemoryCaptureRequest) -> MemoryCaptureResponse
     )
     return MemoryCaptureResponse(
         path=str(path),
-        message="记忆已写入 inbox。后续可再归档到 10/20/30/40 分类目录。",
+        message="Memory captured to inbox. You can later route it into 10/20/30/40 buckets.",
     )
 
 
@@ -677,3 +952,113 @@ async def memory_capture(payload: MemoryCaptureRequest) -> MemoryCaptureResponse
 async def memory_reindex() -> MemoryReindexResponse:
     path = await asyncio.to_thread(write_memory_index, WORKSPACE_ROOT)
     return MemoryReindexResponse(path=str(path), message="记忆索引已重建。")
+
+
+@app.post("/api/integrations/chatlog/webhook", response_model=ChatlogWebhookResponse)
+async def chatlog_webhook(
+    payload: ChatlogWebhookRequest,
+    x_webhook_token: str | None = Header(default=None, alias="X-Webhook-Token"),
+) -> ChatlogWebhookResponse:
+    if not RUNTIME_CONFIG.chatlog_enabled:
+        raise HTTPException(status_code=503, detail="Chatlog integration is disabled.")
+
+    expected_token = RUNTIME_CONFIG.chatlog_webhook_token
+    if not expected_token:
+        raise HTTPException(status_code=500, detail="Chatlog webhook token is not configured.")
+
+    if not x_webhook_token or not hmac.compare_digest(x_webhook_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid webhook token.")
+
+    target_store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+    target = target_store.get_target(payload.talker)
+    if target is not None and not bool(target.get("enabled", True)):
+        return ChatlogWebhookResponse(
+            ok=True,
+            talker=payload.talker,
+            accepted=0,
+            mode="group_digest" if payload.talker.endswith("@chatroom") else "contact_realtime",
+        )
+
+    store = ChatlogStateStore(CHATLOG_STATE_DB)
+    accepted = 0
+    deduped = 0
+    max_time: str | None = None
+    max_seq: int | None = None
+    accepted_messages: list[dict[str, Any]] = []
+    for message in payload.messages:
+        key = _build_idempotency_key(payload.talker, message)
+        message_time = message.get("time") if isinstance(message.get("time"), str) else None
+        inserted = store.mark_processed(key, payload.talker, message_time)
+        if not inserted:
+            deduped += 1
+            continue
+
+        if payload.talker.endswith("@chatroom") and target is not None:
+            if not _should_accept_group_message(target, message):
+                deduped += 1
+                continue
+
+        accepted += 1
+        accepted_messages.append(message)
+        seq = _to_int_or_none(message.get("seq"))
+        if max_time is None or (message_time and message_time > max_time):
+            max_time = message_time
+            max_seq = seq
+        elif message_time == max_time and seq is not None:
+            old = max_seq if max_seq is not None else -1
+            if seq > old:
+                max_seq = seq
+
+    if accepted > 0:
+        store.advance_checkpoint(payload.talker, max_time, max_seq)
+        _persist_chatlog_note(
+            talker=payload.talker,
+            mode="group_digest" if payload.talker.endswith("@chatroom") else "contact_realtime",
+            messages=accepted_messages,
+            source="chatlog_webhook",
+        )
+
+    CHATLOG_RUNTIME["last_webhook_at"] = datetime.now(timezone.utc).isoformat()
+    CHATLOG_RUNTIME["webhook_accepted_total"] = int(CHATLOG_RUNTIME["webhook_accepted_total"]) + accepted
+    CHATLOG_RUNTIME["webhook_deduped_total"] = int(CHATLOG_RUNTIME["webhook_deduped_total"]) + deduped
+
+    mode = "group_digest" if payload.talker.endswith("@chatroom") else "contact_realtime"
+    return ChatlogWebhookResponse(
+        ok=True,
+        talker=payload.talker,
+        accepted=accepted,
+        mode=mode,
+    )
+
+
+@app.get("/api/integrations/chatlog/targets")
+async def list_chatlog_targets() -> dict[str, Any]:
+    store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+    return {"items": store.list_targets()}
+
+
+@app.post("/api/integrations/chatlog/targets/upsert")
+async def upsert_chatlog_target(payload: ChatlogTargetUpsertRequest) -> dict[str, Any]:
+    store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+    item = store.upsert_target(
+        payload.talker,
+        {
+            "enabled": payload.enabled,
+            "group_type": payload.group_type,
+            "importance": payload.importance,
+            "default_memory_bucket": payload.default_memory_bucket,
+            "focus_topics": payload.focus_topics,
+            "important_people": payload.important_people,
+            "noise_tolerance": payload.noise_tolerance,
+            "capture_policy": payload.capture_policy,
+        },
+    )
+    return {"item": item}
+
+
+@app.delete("/api/integrations/chatlog/targets/{talker}")
+async def remove_chatlog_target(talker: str) -> dict[str, Any]:
+    store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
+    removed = store.remove_target(talker)
+    return {"removed": removed}
+

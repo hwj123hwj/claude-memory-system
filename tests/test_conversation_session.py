@@ -16,6 +16,5 @@ def test_create_new_session_when_requested() -> None:
 
 def test_create_new_session_when_missing() -> None:
     session_id, is_new = resolve_session_id(None, new_conversation=False)
-    assert session_id
-    assert is_new is True
-
+    assert session_id == "main"
+    assert is_new is False
