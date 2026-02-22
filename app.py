@@ -238,7 +238,7 @@ def _to_int_or_none(value: Any) -> int | None:
 def _build_idempotency_key(talker: str, message: dict[str, Any]) -> str:
     seq = _to_int_or_none(message.get("seq"))
     if seq is not None:
-        return str(seq)
+        return f"{talker}:{seq}"
     raw = (
         f"{talker}|"
         f"{message.get('sender', '')}|"
@@ -437,9 +437,9 @@ def _is_plan_like_file(path: Path) -> bool:
         "trip",
         "learning",
         "study",
-        "璁″垝",
-        "璺嚎",
-        "瀛︿範",
+        "计划",
+        "路线",
+        "学习",
     )
     return any(token in name for token in plan_tokens)
 
@@ -669,7 +669,10 @@ async def _chatlog_backfill_loop() -> None:
     while True:
         store = ChatlogStateStore(CHATLOG_STATE_DB)
         target_store = ChatlogTargetStore(CHATLOG_TARGETS_FILE)
-        talkers = target_store.enabled_talkers() or list(RUNTIME_CONFIG.chatlog_monitored_talkers)
+        talkers = target_store.enabled_talkers()
+        if not talkers:
+            await asyncio.sleep(RUNTIME_CONFIG.chatlog_backfill_interval_seconds)
+            continue
         report = await asyncio.to_thread(
             run_backfill_once,
             store=store,
@@ -735,7 +738,8 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         )
         effective_prompt = (
             f"{effective_prompt}\n\n"
-            "浠ヤ笅鏄凡浠庡伐浣滃尯璇诲彇鍒扮殑 memory 绱㈠紩涓婁笅鏂囷紝璇峰厛鍩轰簬绱㈠紩鍒ゆ柇鐩稿叧鏂囦欢锛屽啀鎸夐渶鐢?Read 宸ュ叿璇诲彇姝ｆ枃锛歕n"
+            "以下是从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需使用 Read 工具读取正文：
+"
             f"{memory_ctx}"
         )
     logger = SessionLogger(log_dir=LOG_DIR)
