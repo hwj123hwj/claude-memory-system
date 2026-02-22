@@ -738,8 +738,7 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         )
         effective_prompt = (
             f"{effective_prompt}\n\n"
-            "以下是从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需使用 Read 工具读取正文：
-"
+            "以下是从工作区读取到的 memory 索引上下文，请先基于索引判断相关文件，再按需使用 Read 工具读取正文：\n"
             f"{memory_ctx}"
         )
     logger = SessionLogger(log_dir=LOG_DIR)
