@@ -77,7 +77,11 @@ jobs:
               rm -f logs/uvicorn.pid
             fi
             if command -v pgrep >/dev/null 2>&1; then
-              pgrep -f "uvicorn app:app --host 0.0.0.0 --port 8000" | xargs -r kill || true
+              for pid in $(pgrep -f "uvicorn app:app --host 0.0.0.0 --port 8000" || true); do
+                if [ "${pid}" != "$$" ] && [ "${pid}" != "$PPID" ]; then
+                  kill "${pid}" || true
+                fi
+              done
             fi
 
             if [ -f logs/feishu_ws_bridge.pid ]; then
@@ -89,7 +93,11 @@ jobs:
               rm -f logs/feishu_ws_bridge.pid
             fi
             if command -v pgrep >/dev/null 2>&1; then
-              pgrep -f "python feishu_ws_bridge.py" | xargs -r kill || true
+              for pid in $(pgrep -f "python feishu_ws_bridge.py" || true); do
+                if [ "${pid}" != "$$" ] && [ "${pid}" != "$PPID" ]; then
+                  kill "${pid}" || true
+                fi
+              done
             fi
 
             echo "=== updating code ==="
