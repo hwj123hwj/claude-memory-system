@@ -630,14 +630,23 @@ async def get_client(force_new: bool = False) -> ClaudeSDKClient:
     async with CLIENT_INIT_LOCK:
         if CLIENT is None:
             ensure_memory_layout(WORKSPACE_ROOT)
+            sdk_env: dict[str, str] = {}
+            if RUNTIME_CONFIG.anthropic_base_url:
+                sdk_env["ANTHROPIC_BASE_URL"] = RUNTIME_CONFIG.anthropic_base_url
+            if RUNTIME_CONFIG.anthropic_auth_token:
+                sdk_env["ANTHROPIC_AUTH_TOKEN"] = RUNTIME_CONFIG.anthropic_auth_token
+            if RUNTIME_CONFIG.anthropic_api_key:
+                sdk_env["ANTHROPIC_API_KEY"] = RUNTIME_CONFIG.anthropic_api_key
             options = ClaudeAgentOptions(
                 system_prompt=SYSTEM_PROMPT,
                 cwd=str(WORKSPACE_ROOT),
                 allowed_tools=ALLOWED_TOOLS,
                 can_use_tool=can_use_tool,
-                permission_mode="default",
+                permission_mode=RUNTIME_CONFIG.permission_mode,
                 max_turns=RUNTIME_CONFIG.max_turns,
                 setting_sources=["project"],
+                model=RUNTIME_CONFIG.claude_model or None,
+                env=sdk_env,
             )
             client = ClaudeSDKClient(options=options)
             await client.connect()

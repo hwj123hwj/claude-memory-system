@@ -29,6 +29,11 @@ class RuntimeConfig:
     feishu_verification_token: str = ""
     feishu_agent_timeout_seconds: int = 120
     feishu_max_reply_chars: int = 1500
+    claude_model: str = ""
+    permission_mode: str = "default"
+    anthropic_base_url: str = ""
+    anthropic_auth_token: str = ""
+    anthropic_api_key: str = ""
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -85,6 +90,15 @@ def _parse_ratio(raw: str | None, default: float) -> float:
     if value < 0 or value > 1:
         return default
     return value
+
+
+def _parse_permission_mode(raw: str | None, default: str) -> str:
+    if raw is None:
+        return default
+    normalized = raw.strip()
+    if normalized in {"default", "acceptEdits", "bypassPermissions"}:
+        return normalized
+    return default
 
 
 def load_runtime_config(env_file: Path) -> RuntimeConfig:
@@ -153,6 +167,25 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         "FEISHU_MAX_REPLY_CHARS",
         file_env.get("FEISHU_MAX_REPLY_CHARS"),
     )
+    claude_model = os.getenv("CLAUDE_MODEL", file_env.get("CLAUDE_MODEL", ""))
+    permission_mode_raw = os.getenv("PERMISSION_MODE", file_env.get("PERMISSION_MODE"))
+    anthropic_base_url = os.getenv(
+        "ANTHROPIC_BASE_URL",
+        file_env.get("ANTHROPIC_BASE_URL", ""),
+    )
+    anthropic_auth_token = os.getenv(
+        "ANTHROPIC_AUTH_TOKEN",
+        file_env.get("ANTHROPIC_AUTH_TOKEN", ""),
+    )
+    anthropic_api_key = os.getenv(
+        "ANTHROPIC_API_KEY",
+        file_env.get("ANTHROPIC_API_KEY", ""),
+    )
+    if not anthropic_api_key:
+        anthropic_api_key = os.getenv(
+            "CLAUDE_API_KEY",
+            file_env.get("CLAUDE_API_KEY", ""),
+        )
     return RuntimeConfig(
         max_turns=_parse_positive_int(max_turns_raw, 30),
         stale_client_delay_seconds=_parse_positive_int(stale_delay_raw, 20),
@@ -191,4 +224,9 @@ def load_runtime_config(env_file: Path) -> RuntimeConfig:
         feishu_verification_token=feishu_verification_token,
         feishu_agent_timeout_seconds=_parse_positive_int(feishu_agent_timeout_raw, 120),
         feishu_max_reply_chars=_parse_positive_int(feishu_max_reply_chars_raw, 1500),
+        claude_model=claude_model,
+        permission_mode=_parse_permission_mode(permission_mode_raw, "default"),
+        anthropic_base_url=anthropic_base_url,
+        anthropic_auth_token=anthropic_auth_token,
+        anthropic_api_key=anthropic_api_key,
     )
