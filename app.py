@@ -871,6 +871,49 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
     return reply, logger.path
 
 
+async def probe_auth_context() -> dict[str, str]:
+    client = await get_client(force_new=False)
+    api_key_source = "unknown"
+    model = ""
+    error = ""
+
+    async with CLIENT_QUERY_LOCK:
+        await client.query("ping", session_id="auth-probe")
+        async for message in client.receive_response():
+            subtype = getattr(message, "subtype", "")
+            if subtype == "init":
+                data = getattr(message, "data", None)
+                if isinstance(data, dict):
+                    src = data.get("apiKeySource")
+                    mdl = data.get("model")
+                    if isinstance(src, str) and src.strip():
+                        api_key_source = src.strip()
+                    if isinstance(mdl, str) and mdl.strip():
+                        model = mdl.strip()
+
+            if AssistantMessage is not None and isinstance(message, AssistantMessage):
+                payload_error = getattr(message, "error", None)
+                if isinstance(payload_error, str) and payload_error.strip():
+                    error = payload_error.strip()
+                for block in getattr(message, "content", []):
+                    text = _block_text(block)
+                    if text and "Not logged in" in text:
+                        error = "not_logged_in"
+
+            if ResultMessage is not None and isinstance(message, ResultMessage):
+                break
+            if not model and hasattr(message, "model"):
+                maybe_model = getattr(message, "model", "")
+                if isinstance(maybe_model, str) and maybe_model.strip():
+                    model = maybe_model.strip()
+
+    return {
+        "api_key_source": api_key_source,
+        "model": model,
+        "error": error,
+    }
+
+
 async def build_memory_context_async(root: Path, max_entries: int) -> str:
     return await asyncio.to_thread(build_memory_context, root, max_entries)
 

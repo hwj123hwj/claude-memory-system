@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
-from app import run_agent
+from app import probe_auth_context, run_agent
 from chatlog_targets import ChatlogTargetStore
 from runtime_config import load_runtime_config
 
@@ -883,6 +883,21 @@ def main() -> None:
     cfg = load_runtime_config(WORKSPACE_ROOT / ".env")
     if not cfg.feishu_app_id or not cfg.feishu_app_secret:
         raise SystemExit("Missing FEISHU_APP_ID or FEISHU_APP_SECRET in .env")
+
+    try:
+        auth = asyncio.run(probe_auth_context())
+        _logger.info(
+            "auth_probe api_key_source=%s model=%s error=%s home=%s xdg_config_home=%s has_anthropic_api_key=%s",
+            auth.get("api_key_source", "unknown"),
+            auth.get("model", ""),
+            auth.get("error", ""),
+            os.getenv("HOME", ""),
+            os.getenv("XDG_CONFIG_HOME", ""),
+            "yes" if bool(os.getenv("ANTHROPIC_API_KEY")) else "no",
+        )
+    except Exception as exc:
+        _logger.warning("auth_probe_failed: %s", exc)
+
     bridge = FeishuWSBridge(
         app_id=cfg.feishu_app_id,
         app_secret=cfg.feishu_app_secret,
