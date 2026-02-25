@@ -235,6 +235,27 @@ def _to_int_or_none(value: Any) -> int | None:
         return None
 
 
+def _normalize_error_stream(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace").strip()
+    return str(value).strip()
+
+
+def _format_agent_exception(exc: Exception) -> str:
+    parts: list[str] = [str(exc).strip() or repr(exc)]
+
+    stderr_text = _normalize_error_stream(getattr(exc, "stderr", None))
+    stdout_text = _normalize_error_stream(getattr(exc, "stdout", None))
+    if stderr_text:
+        parts.append(f"stderr: {stderr_text}")
+    if stdout_text:
+        parts.append(f"stdout: {stdout_text}")
+
+    return "\n".join(parts)
+
+
 def _build_idempotency_key(talker: str, message: dict[str, Any]) -> str:
     seq = _to_int_or_none(message.get("seq"))
     if seq is not None:
@@ -829,8 +850,9 @@ async def run_agent(prompt: str, conversation_id: str, force_new_client: bool) -
         logger.log_event("cancelled", {"error": repr(exc)})
         raise
     except Exception as exc:
-        logger.log_event("error", {"error": repr(exc)})
-        return f"Claude Code call failed: {exc}\nLog file: {logger.path}", logger.path
+        formatted_error = _format_agent_exception(exc)
+        logger.log_event("error", {"error": repr(exc), "details": formatted_error})
+        return f"Claude Code call failed: {formatted_error}\nLog file: {logger.path}", logger.path
     finally:
         NEW_FILE_ALLOWED.reset(new_file_token)
         WRITE_TOOLS_ALLOWED.reset(write_token)
