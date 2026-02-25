@@ -12,12 +12,25 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      - name: Debug CI ssh key fingerprint
+        shell: bash
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/id_ci
+          chmod 600 ~/.ssh/id_ci
+          ssh-keygen -y -f ~/.ssh/id_ci > ~/.ssh/id_ci.pub
+          echo "=== SSH Key Fingerprint ==="
+          ssh-keygen -lf ~/.ssh/id_ci.pub
+          echo "Expected: SHA256:OHcgAhLAtnCHK8mgIbgKQuiGCuZwLhvGKmAKDEikJWE"
+
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key: |
+            ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           debug: true
           timeout: 30s
