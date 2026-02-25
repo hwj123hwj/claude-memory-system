@@ -100,5 +100,10 @@ jobs:
             nohup uv run uvicorn app:app --host 0.0.0.0 --port 8000 > logs/uvicorn.log 2>&1 &
             echo $! > logs/uvicorn.pid
 
+            # 启动飞书桥接
+            echo "Starting feishu_ws_bridge..."
+            nohup uv run python feishu_ws_bridge.py > logs/feishu_ws_bridge.log 2>&1 &
+            echo $! > logs/feishu_ws_bridge.pid
+
             echo "=== done ==="
             echo "Deployment completed. Services started."
