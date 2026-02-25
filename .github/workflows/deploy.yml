@@ -3,7 +3,7 @@ name: Auto Deploy to Server
 on:
   push:
     branches:
-      - v1
+      - main
   workflow_dispatch:
 
 jobs:
@@ -102,7 +102,7 @@ jobs:
 
             echo "=== updating code ==="
             git fetch origin
-            git reset --hard origin/v1
+            git reset --hard origin/main
             git rev-parse --short HEAD
 
             echo "=== checking uv ==="
