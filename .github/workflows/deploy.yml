@@ -48,6 +48,10 @@ jobs:
             mkdir -p /root/claude-memory-system
             cd /root/claude-memory-system
 
+            mkdir -p ~/.ssh
+            chmod 700 ~/.ssh
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null || true
+
             # 如果目录是空的,初始化 git
             if [ ! -d .git ]; then
               echo "=== initializing git repo ==="
@@ -59,9 +63,6 @@ jobs:
 
             # 禁止 Git 交互提示
             export GIT_TERMINAL_PROMPT=0
-            mkdir -p ~/.ssh
-            chmod 700 ~/.ssh
-            ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null || true
 
             echo "=== git remote ==="
             git remote -v
