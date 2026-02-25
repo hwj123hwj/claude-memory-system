@@ -67,9 +67,30 @@ jobs:
             echo "=== git remote ==="
             git remote -v
 
-            echo "=== skipping service stop (manual restart required) ==="
-            echo "Note: Services will NOT be stopped automatically"
-            echo "Please restart manually after deployment if needed"
+            echo "=== stopping old services (if running) ==="
+            if [ -f logs/uvicorn.pid ]; then
+              old_pid="$(cat logs/uvicorn.pid || true)"
+              if [ -n "${old_pid}" ] && kill -0 "${old_pid}" 2>/dev/null; then
+                kill "${old_pid}" || true
+                sleep 1
+              fi
+              rm -f logs/uvicorn.pid
+            fi
+            if command -v pgrep >/dev/null 2>&1; then
+              pgrep -f "uvicorn app:app --host 0.0.0.0 --port 8000" | xargs -r kill || true
+            fi
+
+            if [ -f logs/feishu_ws_bridge.pid ]; then
+              old_pid="$(cat logs/feishu_ws_bridge.pid || true)"
+              if [ -n "${old_pid}" ] && kill -0 "${old_pid}" 2>/dev/null; then
+                kill "${old_pid}" || true
+                sleep 1
+              fi
+              rm -f logs/feishu_ws_bridge.pid
+            fi
+            if command -v pgrep >/dev/null 2>&1; then
+              pgrep -f "python feishu_ws_bridge.py" | xargs -r kill || true
+            fi
 
             echo "=== updating code ==="
             git fetch origin
@@ -99,11 +120,23 @@ jobs:
             echo "Starting uvicorn..."
             nohup uv run uvicorn app:app --host 0.0.0.0 --port 8000 > logs/uvicorn.log 2>&1 &
             echo $! > logs/uvicorn.pid
+            sleep 2
+            if ! kill -0 "$(cat logs/uvicorn.pid)" 2>/dev/null; then
+              echo "uvicorn failed to start; tail logs/uvicorn.log"
+              tail -n 100 logs/uvicorn.log || true
+              exit 1
+            fi
 
             # 启动飞书桥接
             echo "Starting feishu_ws_bridge..."
             nohup uv run python feishu_ws_bridge.py > logs/feishu_ws_bridge.log 2>&1 &
             echo $! > logs/feishu_ws_bridge.pid
+            sleep 2
+            if ! kill -0 "$(cat logs/feishu_ws_bridge.pid)" 2>/dev/null; then
+              echo "feishu_ws_bridge failed to start; tail logs/feishu_ws_bridge.log"
+              tail -n 100 logs/feishu_ws_bridge.log || true
+              exit 1
+            fi
 
             echo "=== done ==="
             echo "Deployment completed. Services started."
